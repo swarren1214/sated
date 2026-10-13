@@ -11,8 +11,11 @@ struct CoachView: View {
     @State private var micProblem: String?
     @AppStorage(SettingsKey.accent) private var accent: AccentOption = .orange
 
-    /// One line of the message field, and the size of the mic and send buttons beside it.
+    /// One line of the message field.
     private static let composerHeight: CGFloat = 44
+    /// The mic and send buttons: a solid circle inset inside the field's height, like Messages.
+    /// (Interactive glass draws larger than its frame, so it isn't used here.)
+    private static let buttonSize: CGFloat = 36
 
     private let starters = ["What should I eat for dinner?", "Summarize my week", "How much protein did I eat yesterday?", "How's my fiber this week?"]
 
@@ -140,24 +143,26 @@ struct CoachView: View {
                         }
                     } label: {
                         Image(systemName: dictation.isListening ? "stop.fill" : "mic.fill")
-                            .font(.system(size: 18, weight: .semibold))
-                            .frame(width: Self.composerHeight, height: Self.composerHeight)
+                            .font(.system(size: 16, weight: .semibold))
+                            .frame(width: Self.buttonSize, height: Self.buttonSize)
                             .contentShape(.circle)
                     }
                     .buttonStyle(.plain)
                     .foregroundStyle(.white)
-                    .glassEffect(.regular.tint(accent.color).interactive(), in: .circle)
+                    .background(accent.color, in: .circle)
+                    .padding(.bottom, (Self.composerHeight - Self.buttonSize) / 2)
                     .accessibilityLabel(dictation.isListening ? "Stop" : "Ask out loud")
                 } else {
                     Button(action: send) {
                         Image(systemName: "arrow.up")
-                            .font(.system(size: 18, weight: .bold))
-                            .frame(width: Self.composerHeight, height: Self.composerHeight)
+                            .font(.system(size: 16, weight: .bold))
+                            .frame(width: Self.buttonSize, height: Self.buttonSize)
                             .contentShape(.circle)
                     }
                     .buttonStyle(.plain)
                     .foregroundStyle(.white)
-                    .glassEffect(.regular.tint(accent.color).interactive(), in: .circle)
+                    .background(accent.color, in: .circle)
+                    .padding(.bottom, (Self.composerHeight - Self.buttonSize) / 2)
                     .disabled(coach.isThinking)
                     .opacity(coach.isThinking ? 0.5 : 1)
                     .accessibilityLabel("Send")

@@ -16,6 +16,8 @@ struct TodayView: View {
                 ToolbarItem(placement: .topBarTrailing) {
                     StreakBadge()
                 }
+                // The badge draws its own glass capsule, sized to its contents.
+                .sharedBackgroundVisibility(.hidden)
                 ToolbarSpacer(.fixed, placement: .topBarTrailing)
                 ToolbarItem(placement: .topBarTrailing) {
                     Button("Settings", systemImage: "person.crop.circle") { showsSettings = true }
@@ -80,7 +82,7 @@ private struct DayLog: View {
 
                 VStack(alignment: .leading, spacing: 8) {
                     SectionHeader(title: "Meals") {
-                        Button("Add Food") { router.addFood() }
+                        Button("Add Food", systemImage: "plus") { router.addFood() }
                             .font(.body)
                     }
                     VStack(spacing: 0) {
@@ -199,6 +201,7 @@ private struct MealRow: View {
         if entries.isEmpty {
             Button { router.addFood(to: meal) } label: { row }
                 .buttonStyle(.plain)
+                .accessibilityLabel("Add food to \(meal.name)")
         } else {
             NavigationLink { MealView(meal: meal, day: day) } label: { row }
                 .buttonStyle(.plain)
@@ -212,9 +215,7 @@ private struct MealRow: View {
                 HStack(alignment: .firstTextBaseline) {
                     Text(meal.name)
                     Spacer()
-                    if entries.isEmpty {
-                        Text("Add").fontWeight(.semibold).foregroundStyle(.tint)
-                    } else {
+                    if !entries.isEmpty {
                         Text("\(Int(calories.rounded())) kcal")
                             .foregroundStyle(.secondary)
                             .monospacedDigit()
@@ -225,9 +226,17 @@ private struct MealRow: View {
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
             }
-            Image(systemName: "chevron.right")
-                .font(.footnote.weight(.semibold))
-                .foregroundStyle(.tertiary)
+            // An empty meal shows a plus (the whole row adds to it); a logged one opens.
+            if entries.isEmpty {
+                Image(systemName: "plus.circle.fill")
+                    .font(.system(size: 28))
+                    .foregroundStyle(.tint)
+                    .accessibilityHidden(true)
+            } else {
+                Image(systemName: "chevron.right")
+                    .font(.footnote.weight(.semibold))
+                    .foregroundStyle(.tertiary)
+            }
         }
         .padding(.vertical, 12)
         .padding(.horizontal, 16)
@@ -243,6 +252,7 @@ private struct MealRow: View {
 /// Days in a row with something logged.
 private struct StreakBadge: View {
     @Query private var recent: [FoodEntry]
+    @AppStorage(SettingsKey.accent) private var accent: AccentOption = .orange
 
     init() {
         let start = Calendar.current.date(byAdding: .day, value: -120, to: .now) ?? .now
@@ -251,17 +261,19 @@ private struct StreakBadge: View {
 
     var body: some View {
         let streak = Summaries.streak(recent.map(\.record))
-        // Sized to its contents so the glass capsule widens as the number grows.
-        HStack(spacing: 5) {
+        // Its own capsule, so it widens with the number instead of squeezing into a circle.
+        HStack(spacing: 6) {
             Image(systemName: "flame.fill")
             Text("\(streak)")
                 .monospacedDigit()
                 .contentTransition(.numericText())
         }
         .font(.body.weight(.semibold))
-        .foregroundStyle(.tint)
-        .padding(.horizontal, 6)
+        .foregroundStyle(accent.color)
+        .padding(.horizontal, 16)
+        .frame(minWidth: 72, minHeight: 44)
         .fixedSize()
+        .glassEffect(.regular, in: .capsule)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("Logging streak")
         .accessibilityValue("\(streak) day\(streak == 1 ? "" : "s")")

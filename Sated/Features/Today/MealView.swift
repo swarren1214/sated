@@ -39,11 +39,19 @@ struct MealView: View {
                                     .monospacedDigit()
                             }
                         }
+                        .foregroundStyle(.primary)
+                        .contentShape(.rect)
                     }
-                }
-                .onDelete { offsets in
-                    let removed = offsets.map { entries[$0] }
-                    for entry in removed { FoodLog.delete(entry, in: context) }
+                    .buttonStyle(.plain)
+                    // Icon only: the trash can says Delete on its own.
+                    .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                        Button(role: .destructive) {
+                            FoodLog.delete(entry, in: context)
+                        } label: {
+                            Image(systemName: "trash")
+                                .accessibilityLabel("Delete")
+                        }
+                    }
                 }
             } footer: {
                 Text(totals.summary)

@@ -43,6 +43,7 @@ struct AddFoodView: View {
                     .pickerStyle(.segmented)
                     .listRowBackground(Color.clear)
                     .listRowInsets(EdgeInsets())
+                    .listRowSeparator(.hidden)
 
                     if query.isEmpty {
                         QuickActions(
@@ -52,6 +53,7 @@ struct AddFoodView: View {
                         )
                         .listRowBackground(Color.clear)
                         .listRowInsets(EdgeInsets())
+                        .listRowSeparator(.hidden)
                     }
                 }
 
@@ -160,7 +162,8 @@ private struct QuickActions: View {
     }
 }
 
-/// A food in a list: tap for details, or the plus to add one serving straight away.
+/// A food in a list: tap anywhere for details, or the plus to add one serving straight away.
+/// The link sits invisibly behind the row, so the list draws no chevron next to the plus.
 struct FoodRow: View {
     var food: FoodItem
     var meal: Meal
@@ -169,25 +172,31 @@ struct FoodRow: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            NavigationLink(value: food) {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(food.name)
-                    Text(food.listDetail)
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
-                        .monospacedDigit()
-                }
+            VStack(alignment: .leading, spacing: 2) {
+                Text(food.name)
+                Text(food.listDetail)
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                    .monospacedDigit()
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
+
             Button {
                 FoodLog.add(food, servings: 1, meal: meal, in: context)
                 withAnimation(.snappy) { added = true }
             } label: {
                 Image(systemName: added ? "checkmark.circle.fill" : "plus.circle.fill")
-                    .font(.title2)
+                    .font(.system(size: 30))
                     .contentTransition(.symbolEffect(.replace))
+                    .frame(width: 44, height: 44)
+                    .contentShape(.circle)
             }
             .buttonStyle(.borderless)
             .accessibilityLabel(added ? "Added to \(meal.name)" : "Add one serving to \(meal.name)")
+        }
+        .background {
+            NavigationLink(value: food) { EmptyView() }
+                .opacity(0)
         }
     }
 }
