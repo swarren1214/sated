@@ -5,19 +5,19 @@ import FoundationModels
 enum OnDeviceModel {
     enum Availability: Equatable {
         case available
-        /// Supported iPhone, but Apple Intelligence is off.
+        /// Supported iPhone, but the system's AI features are turned off.
         case notEnabled
         /// Turned on, but the model is still downloading.
         case notReady
-        /// This iPhone can't run Apple Intelligence: Coach and voice parsing aren't offered.
+        /// This iPhone can't run the on-device model: Coach and voice parsing aren't offered.
         case unsupported
 
         var message: String {
             switch self {
             case .available: ""
-            case .notEnabled: "Coach uses Apple Intelligence, which is turned off. Turn it on in Settings › Apple Intelligence & Siri."
-            case .notReady: "Apple Intelligence is still getting ready on this iPhone. Try again in a little while."
-            case .unsupported: "Coach needs an iPhone that supports Apple Intelligence. Everything else in Sated works without it."
+            case .notEnabled: "Coach runs on your iPhone’s built-in AI, which is turned off. You can turn it on in the Settings app."
+            case .notReady: "Your iPhone’s built-in AI is still getting ready. Try again in a little while."
+            case .unsupported: "Coach needs a newer iPhone with built-in AI. Everything else in Sated works without it."
             }
         }
 

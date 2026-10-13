@@ -23,6 +23,17 @@ nonisolated enum AudioSessionControl {
         }
     }
 
+    /// For talking with Coach: the microphone and Coach's voice at once, through Apple's voice
+    /// processing (echo cancellation and noise suppression). Speaker by default, so the
+    /// conversation isn't stuck in the earpiece; AirPods and other headsets work too.
+    static func activateForConversation() async throws {
+        try await run {
+            let session = AVAudioSession.sharedInstance()
+            try session.setCategory(.playAndRecord, mode: .voiceChat, options: [.defaultToSpeaker, .allowBluetoothHFP, .duckOthers])
+            try session.setActive(true, options: .notifyOthersOnDeactivation)
+        }
+    }
+
     /// Hands audio back to other apps (and un-ducks their music).
     static func deactivate() {
         queue.async {

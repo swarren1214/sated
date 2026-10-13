@@ -9,6 +9,7 @@
 /* Begin PBXBuildFile section */
 		5A7E00000000000000000105 /* KokoroSwift in Frameworks */ = {isa = PBXBuildFile; productRef = 5A7E00000000000000000103 /* KokoroSwift */; };
 		5A7E00000000000000000106 /* MLX in Frameworks */ = {isa = PBXBuildFile; productRef = 5A7E00000000000000000104 /* MLX */; };
+		5A7E0000000000000000020D /* SatedWidgets.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 5A7E00000000000000000201 /* SatedWidgets.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -19,7 +20,28 @@
 			remoteGlobalIDString = 5A7E00000000000000000008;
 			remoteInfo = Sated;
 		};
+		5A7E0000000000000000020B /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 5A7E00000000000000000001 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 5A7E00000000000000000204;
+			remoteInfo = SatedWidgets;
+		};
 /* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		5A7E0000000000000000020E /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				5A7E0000000000000000020D /* SatedWidgets.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
 		5A7E00000000000000000006 /* Sated.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Sated.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -27,6 +49,9 @@
 		5A7E0000000000000000001B /* Sated.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Sated.entitlements; sourceTree = "<group>"; };
 		5A7E0000000000000000001C /* README.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = "<group>"; };
 		5A7E0000000000000000001D /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		5A7E00000000000000000201 /* SatedWidgets.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = SatedWidgets.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		5A7E0000000000000000020F /* SatedWidgets.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = SatedWidgets.entitlements; sourceTree = "<group>"; };
+		5A7E00000000000000000210 /* SatedWidgets-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "SatedWidgets-Info.plist"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -38,6 +63,16 @@
 		5A7E00000000000000000005 /* SatedTests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = SatedTests;
+			sourceTree = "<group>";
+		};
+		5A7E00000000000000000202 /* SatedWidgets */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = SatedWidgets;
+			sourceTree = "<group>";
+		};
+		5A7E00000000000000000203 /* Shared */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = Shared;
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -59,6 +94,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		5A7E00000000000000000206 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -68,7 +110,11 @@
 				5A7E0000000000000000001C /* README.md */,
 				5A7E0000000000000000001B /* Sated.entitlements */,
 				5A7E0000000000000000001D /* Info.plist */,
+				5A7E0000000000000000020F /* SatedWidgets.entitlements */,
+				5A7E00000000000000000210 /* SatedWidgets-Info.plist */,
 				5A7E00000000000000000004 /* Sated */,
+				5A7E00000000000000000203 /* Shared */,
+				5A7E00000000000000000202 /* SatedWidgets */,
 				5A7E00000000000000000005 /* SatedTests */,
 				5A7E00000000000000000003 /* Products */,
 			);
@@ -79,6 +125,7 @@
 			children = (
 				5A7E00000000000000000006 /* Sated.app */,
 				5A7E00000000000000000007 /* SatedTests.xctest */,
+				5A7E00000000000000000201 /* SatedWidgets.appex */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -93,13 +140,16 @@
 				5A7E0000000000000000000A /* Sources */,
 				5A7E0000000000000000000B /* Frameworks */,
 				5A7E0000000000000000000C /* Resources */,
+				5A7E0000000000000000020E /* Embed Foundation Extensions */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				5A7E0000000000000000020C /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				5A7E00000000000000000004 /* Sated */,
+				5A7E00000000000000000203 /* Shared */,
 			);
 			name = Sated;
 			packageProductDependencies = (
@@ -133,6 +183,29 @@
 			productReference = 5A7E00000000000000000007 /* SatedTests.xctest */;
 			productType = "com.apple.product-type.bundle.unit-test";
 		};
+		5A7E00000000000000000204 /* SatedWidgets */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 5A7E00000000000000000208 /* Build configuration list for PBXNativeTarget "SatedWidgets" */;
+			buildPhases = (
+				5A7E00000000000000000205 /* Sources */,
+				5A7E00000000000000000206 /* Frameworks */,
+				5A7E00000000000000000207 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				5A7E00000000000000000202 /* SatedWidgets */,
+				5A7E00000000000000000203 /* Shared */,
+			);
+			name = SatedWidgets;
+			packageProductDependencies = (
+			);
+			productName = SatedWidgets;
+			productReference = 5A7E00000000000000000201 /* SatedWidgets.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -149,6 +222,9 @@
 					5A7E00000000000000000009 = {
 						CreatedOnToolsVersion = 26.0;
 						TestTargetID = 5A7E00000000000000000008;
+					};
+					5A7E00000000000000000204 = {
+						CreatedOnToolsVersion = 26.0;
 					};
 				};
 			};
@@ -172,6 +248,7 @@
 			targets = (
 				5A7E00000000000000000008 /* Sated */,
 				5A7E00000000000000000009 /* SatedTests */,
+				5A7E00000000000000000204 /* SatedWidgets */,
 			);
 		};
 /* End PBXProject section */
@@ -185,6 +262,13 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		5A7E0000000000000000000F /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		5A7E00000000000000000207 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -208,6 +292,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		5A7E00000000000000000205 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
@@ -215,6 +306,11 @@
 			isa = PBXTargetDependency;
 			target = 5A7E00000000000000000008 /* Sated */;
 			targetProxy = 5A7E00000000000000000010 /* PBXContainerItemProxy */;
+		};
+		5A7E0000000000000000020C /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 5A7E00000000000000000204 /* SatedWidgets */;
+			targetProxy = 5A7E0000000000000000020B /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
@@ -281,7 +377,7 @@
 		5A7E00000000000000000017 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_APPICON_NAME = Sated;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = Sated.entitlements;
 				CODE_SIGN_STYLE = Automatic;
@@ -321,7 +417,7 @@
 		5A7E00000000000000000018 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_APPICON_NAME = Sated;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = Sated.entitlements;
 				CODE_SIGN_STYLE = Automatic;
@@ -398,6 +494,62 @@
 			};
 			name = Release;
 		};
+		5A7E00000000000000000209 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = SatedWidgets.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = BH8R3BX5WF;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "SatedWidgets-Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = Sated;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 0.1;
+				PRODUCT_BUNDLE_IDENTIFIER = com.stephenwarren.sated.widgets;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				REGISTER_APP_GROUPS = YES;
+				SKIP_INSTALL = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Debug;
+		};
+		5A7E0000000000000000020A /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = SatedWidgets.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = BH8R3BX5WF;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "SatedWidgets-Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = Sated;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 0.1;
+				PRODUCT_BUNDLE_IDENTIFIER = com.stephenwarren.sated.widgets;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				REGISTER_APP_GROUPS = YES;
+				SKIP_INSTALL = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -424,6 +576,15 @@
 			buildConfigurations = (
 				5A7E00000000000000000019 /* Debug */,
 				5A7E0000000000000000001A /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		5A7E00000000000000000208 /* Build configuration list for PBXNativeTarget "SatedWidgets" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				5A7E00000000000000000209 /* Debug */,
+				5A7E0000000000000000020A /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

@@ -1,50 +1,43 @@
+import AVFoundation
 import SwiftData
 import SwiftUI
 
-/// Talking to Coach: the same listening screen as Say It. Stop speaking and Coach answers in
-/// the panel, out loud in its natural voice (all on the iPhone); the exchange is also added
-/// to the chat.
+/// Talking with Coach, hands free. The microphone stays on: pause for a moment and Coach
+/// answers out loud (all on the iPhone), then listens again. Start talking while it thinks or
+/// speaks and it stops to listen. Every exchange is also added to the chat.
 struct CoachVoiceView: View {
-    /// Called when the person taps Type Instead: the chat's text field takes over.
+    /// Called when the person taps Type: the chat's text field takes over.
     var onType: () -> Void = {}
-
-    enum Phase: Equatable {
-        case listening
-        case thinking
-        case answered(UUID)
-        case failed(String)
-    }
 
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var context
     @Environment(CoachEngine.self) private var coach
     @AppStorage(SettingsKey.accent) private var accent: AccentOption = .orange
     @AppStorage(SettingsKey.spokenReplies) private var spokenReplies = true
-    @State private var dictation = Dictation()
+    @State private var conversation = CoachConversation()
     @State private var speaker = CoachSpeaker.shared
     @State private var model = KokoroModel.shared
-    @State private var phase: Phase = .listening
-    @State private var question = ""
-    /// Set when the screen is closing, so stopping the microphone doesn't send anything.
-    @State private var closing = false
+    @State private var micMode = ConversationAudio.microphoneModeName
 
     private var reply: CoachMessage? {
-        guard case .answered(let id) = phase else { return nil }
+        guard let id = conversation.replyID else { return nil }
         return coach.messages.first { $0.id == id }
     }
 
     var body: some View {
         ZStack {
-            ListeningGlow(active: phase == .listening, level: dictation.level)
+            ListeningGlow(active: conversation.isListening, level: conversation.level)
 
             VStack(alignment: .leading, spacing: 0) {
-                VoiceTopBar { close() }
+                topBar
                 Spacer(minLength: 24)
                 LiveTranscript(
-                    heading: phase == .listening ? "Listening" : "You asked",
-                    text: phase == .listening ? dictation.transcript : question,
-                    placeholder: "Ask about your food, like “what should I eat for dinner?”",
-                    isListening: phase == .listening,
+                    heading: heading,
+                    text: conversation.isListening ? conversation.transcript : conversation.question,
+                    placeholder: conversation.question.isEmpty
+                        ? "Ask about your food, like “what should I eat for dinner?”"
+                        : "Go ahead, I’m listening.",
+                    isListening: conversation.isListening,
                     quoted: true
                 )
                 Spacer(minLength: 24)
@@ -56,68 +49,147 @@ struct CoachVoiceView: View {
         .voiceScreenBackground()
         .task {
             speaker.prewarm()
-            await listen()
+            await conversation.start(with: coach)
+            micMode = ConversationAudio.microphoneModeName
         }
-        .onDisappear { speaker.stop() }
-        .onChange(of: dictation.state) { _, state in
-            switch state {
-            case .denied: phase = .failed(VoiceMessages.denied)
-            case .unavailable: phase = .failed(VoiceMessages.unavailable)
-            case .idle where phase == .listening && !dictation.transcript.isEmpty && !closing:
-                Task { await ask() }
-            case .idle where phase == .listening && dictation.transcript.isEmpty && !closing:
-                phase = .failed("Didn't hear anything. Tap Try Again and ask your question.")
-            default: break
+        .onDisappear { conversation.stop() }
+        .onReceive(NotificationCenter.default.publisher(for: UIApplication.didBecomeActiveNotification)) { _ in
+            // Back from Control Center, where the mic mode is picked.
+            micMode = ConversationAudio.microphoneModeName
+        }
+    }
+
+    private var heading: String {
+        switch conversation.phase {
+        case .listening, .starting: "Listening"
+        case .thinking, .speaking: "You asked"
+        case .paused: "Paused"
+        case .failed: "Coach"
+        }
+    }
+
+    /// Close, the privacy pill, and the microphone mode (Voice Isolation keeps background
+    /// voices and noise out).
+    private var topBar: some View {
+        ZStack(alignment: .trailing) {
+            VoiceTopBar { close() }
+            Button {
+                ConversationAudio.showMicrophoneModes()
+            } label: {
+                Image(systemName: micMode == "Voice Isolation" ? "person.wave.2.fill" : "waveform.and.mic")
+                    .font(.system(size: 17, weight: .semibold))
+                    .frame(width: 44, height: 44)
+                    .contentShape(.circle)
             }
+            .buttonStyle(.plain)
+            .glassEffect(.regular.interactive(), in: .circle)
+            .accessibilityLabel("Microphone mode: \(micMode)")
+            .accessibilityHint("Choose Voice Isolation to keep background voices out.")
         }
     }
 
     @ViewBuilder
     private var panel: some View {
-        switch phase {
+        status
+        if let reply, conversation.phase != .thinking {
+            answer(reply)
+        }
+        if spokenReplies {
+            naturalVoiceOffer
+        }
+        buttons
+    }
+
+    /// What's happening now, with the one control that fits it.
+    @ViewBuilder
+    private var status: some View {
+        switch conversation.phase {
+        case .starting:
+            HStack(spacing: 12) {
+                ProgressView()
+                Text("Starting…").foregroundStyle(.secondary)
+            }
+            .frame(maxWidth: .infinity, minHeight: 64)
         case .listening:
-            ListeningControls(
-                level: dictation.level,
-                hint: "Ask about what you've eaten, what's left today, or what to eat next.",
-                canStop: !dictation.transcript.isEmpty,
-                onType: {
-                    closing = true
-                    dictation.stop()
-                    dismiss()
-                    onType()
-                },
-                onStop: {
-                    dictation.stop()
-                    Task { await ask() }
+            VStack(spacing: 12) {
+                Waveform(level: conversation.level)
+                    .frame(height: 48)
+                HStack {
+                    Text(conversation.transcript.isEmpty
+                         ? "Talk naturally. Coach answers when you pause."
+                         : "Pause when you’re done, or tap Send.")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                    Spacer()
+                    if !conversation.transcript.isEmpty {
+                        Button("Send", systemImage: "arrow.up") { conversation.finishSpeaking() }
+                            .labelStyle(.iconOnly)
+                            .font(.system(size: 15, weight: .bold))
+                            .foregroundStyle(.white)
+                            .frame(width: 36, height: 36)
+                            .background(accent.color, in: .circle)
+                            .buttonStyle(.plain)
+                    }
                 }
-            )
+            }
         case .thinking:
             HStack(spacing: 12) {
                 ProgressView()
-                Text("Coach is thinking…")
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Coach is thinking…")
+                    Text("Keep talking to change your question.")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                }
             }
-            .frame(maxWidth: .infinity, minHeight: 120)
-        case .answered:
-            if let reply {
-                answer(reply)
+            .frame(maxWidth: .infinity, minHeight: 64, alignment: .leading)
+        case .speaking:
+            HStack(spacing: 12) {
+                Image(systemName: "speaker.wave.2.fill")
+                    .symbolEffect(.variableColor.iterative, options: .repeating)
+                    .foregroundStyle(accent.color)
+                    .font(.title3)
+                Text("Start talking to interrupt.")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                Spacer()
+                Button("Stop", systemImage: "stop.fill") { conversation.interrupt() }
+                    .labelStyle(.iconOnly)
+                    .font(.system(size: 14, weight: .bold))
+                    .frame(width: 36, height: 36)
+                    .background(.fill.secondary, in: .circle)
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Stop Coach and listen")
+            }
+        case .paused:
+            HStack(spacing: 12) {
+                Image(systemName: "mic.slash")
+                    .foregroundStyle(.secondary)
+                Text("The microphone is off.")
+                    .foregroundStyle(.secondary)
+                Spacer()
+                Button {
+                    Task { await conversation.resume() }
+                } label: {
+                    Label("Resume", systemImage: "mic.fill")
+                        .font(.subheadline.weight(.semibold))
+                        .padding(.horizontal, 14)
+                        .frame(height: 36)
+                }
+                .buttonStyle(.plain)
+                .foregroundStyle(accent.color)
+                .background(accent.color.opacity(0.15), in: .capsule)
             }
         case .failed(let message):
             Text(message).font(.subheadline)
-            buttons(primary: "Try Again")
         }
     }
 
     @ViewBuilder
     private func answer(_ reply: CoachMessage) -> some View {
-        HStack {
-            Label("Coach", systemImage: "sparkles")
-                .font(.subheadline.weight(.semibold))
-                .foregroundStyle(accent.color)
-            Spacer()
-            if spokenReplies {
-                speakingControl(reply)
-            }
-        }
+        Label("Coach", systemImage: "sparkles")
+            .font(.subheadline.weight(.semibold))
+            .foregroundStyle(accent.color)
         Text(reply.text)
             .font(.body)
             .fixedSize(horizontal: false, vertical: true)
@@ -153,42 +225,6 @@ struct CoachVoiceView: View {
             .disabled(reply.logged)
             .opacity(reply.logged ? 0.5 : 1)
         }
-        if spokenReplies {
-            naturalVoiceOffer
-        }
-        buttons(primary: "Ask Another")
-    }
-
-    /// Replay, or stop while it's talking.
-    @ViewBuilder
-    private func speakingControl(_ reply: CoachMessage) -> some View {
-        switch speaker.state {
-        case .preparing:
-            ProgressView().controlSize(.small)
-        case .speaking:
-            Button {
-                speaker.stop()
-            } label: {
-                Image(systemName: "speaker.wave.2.fill")
-                    .symbolEffect(.variableColor.iterative, options: .repeating)
-                    .foregroundStyle(accent.color)
-                    .frame(width: 36, height: 36)
-                    .contentShape(.rect)
-            }
-            .buttonStyle(.plain)
-            .accessibilityLabel("Stop speaking")
-        case .idle:
-            Button {
-                speaker.speak(reply.text)
-            } label: {
-                Image(systemName: "speaker.wave.2")
-                    .foregroundStyle(.secondary)
-                    .frame(width: 36, height: 36)
-                    .contentShape(.rect)
-            }
-            .buttonStyle(.plain)
-            .accessibilityLabel("Say it again")
-        }
     }
 
     /// Until the natural voice is on the phone, a one-line offer to get it.
@@ -213,59 +249,44 @@ struct CoachVoiceView: View {
             EmptyView()
         }
     }
-    private func buttons(primary: String) -> some View {
+
+    private var buttons: some View {
         HStack(spacing: 10) {
-            Button { close() } label: {
-                Text("Done").frame(maxWidth: .infinity, minHeight: 50)
+            Button {
+                conversation.stop()
+                dismiss()
+                onType()
+            } label: {
+                Label("Type", systemImage: "keyboard").frame(maxWidth: .infinity, minHeight: 50)
             }
             .buttonStyle(.plain)
             .font(.headline)
             .background(.fill.secondary, in: .capsule)
 
-            Button {
-                speaker.stop()
-                phase = .listening
-                Task { await listen() }
-            } label: {
-                Label(primary, systemImage: "mic.fill").frame(maxWidth: .infinity, minHeight: 50)
+            if case .failed = conversation.phase {
+                Button {
+                    Task { await conversation.resume() }
+                } label: {
+                    Label("Try Again", systemImage: "mic.fill").frame(maxWidth: .infinity, minHeight: 50)
+                }
+                .buttonStyle(.plain)
+                .font(.headline)
+                .foregroundStyle(accent.color)
+                .background(accent.color.opacity(0.15), in: .capsule)
+            } else {
+                Button { close() } label: {
+                    Text("Done").frame(maxWidth: .infinity, minHeight: 50)
+                }
+                .buttonStyle(.plain)
+                .font(.headline)
+                .foregroundStyle(accent.color)
+                .background(accent.color.opacity(0.15), in: .capsule)
             }
-            .buttonStyle(.plain)
-            .font(.headline)
-            .foregroundStyle(accent.color)
-            .background(accent.color.opacity(0.15), in: .capsule)
         }
     }
 
     private func close() {
-        closing = true
-        speaker.stop()
-        dictation.stop()
+        conversation.stop()
         dismiss()
-    }
-
-    private func listen() async {
-        await dictation.start()
-        switch dictation.state {
-        case .denied: phase = .failed(VoiceMessages.denied)
-        case .unavailable: phase = .failed(VoiceMessages.unavailable)
-        default: break
-        }
-    }
-
-    private func ask() async {
-        guard phase == .listening, !closing else { return }
-        let text = dictation.transcript.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !text.isEmpty else { return }
-        question = text
-        withAnimation(.snappy) { phase = .thinking }
-        let before = coach.messages.count
-        await coach.send(text)
-        // The coach's answer, or the notice it gave instead (Apple Intelligence off, and so on).
-        if let answer = coach.messages.dropFirst(before).last(where: { $0.role != .user }) {
-            withAnimation(.snappy) { phase = .answered(answer.id) }
-            if spokenReplies, answer.role == .coach, !closing { speaker.speak(answer.text) }
-        } else {
-            phase = .failed("Coach couldn't answer just now. Try asking again.")
-        }
     }
 }

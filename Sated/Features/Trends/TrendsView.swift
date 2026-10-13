@@ -16,6 +16,7 @@ struct TrendsView: View {
     @AppStorage(SettingsKey.goalCarbs) private var goalCarbs = Goals.defaults.carbs
     @AppStorage(SettingsKey.goalFat) private var goalFat = Goals.defaults.fat
     @AppStorage(SettingsKey.goalFiber) private var goalFiber = Goals.defaults.fiber
+    @AppStorage(SettingsKey.accent) private var accent: AccentOption = .orange
 
     private let calendar = Calendar.current
 
@@ -49,6 +50,8 @@ struct TrendsView: View {
         }
         .background(Color(.systemGroupedBackground))
         .navigationTitle("Trends")
+        // The tab's own tint, so charts, rings and headings match the accent.
+        .tint(accent.color)
     }
 }
 
@@ -315,17 +318,14 @@ private struct MonthTrends: View {
                     .font(.footnote)
                     .foregroundStyle(.secondary)
 
-                let columns = Array(repeating: GridItem(.flexible(), spacing: 5), count: 7)
-                LazyVGrid(columns: columns, spacing: 5) {
-                    ForEach(Array(calendar.veryShortWeekdaySymbols.rotated(by: calendar.firstWeekday - 1).enumerated()), id: \.offset) { _, symbol in
-                        Text(symbol).font(.caption2.weight(.semibold)).foregroundStyle(.secondary)
-                    }
-                    ForEach(0..<leading, id: \.self) { _ in Color.clear.frame(height: 1) }
-                    ForEach(monthDays) { day in
-                        DayCell(day: day, goal: goals.calories, isToday: calendar.isDateInToday(day.date), isFuture: day.date > today)
-                    }
-                }
-                .padding(.top, 14)
+                MonthCalendar(
+                    days: monthDays,
+                    leading: leading,
+                    goal: goals.calories,
+                    today: today,
+                    weekdays: calendar.veryShortWeekdaySymbols.rotated(by: calendar.firstWeekday - 1)
+                )
+                .padding(.top, 16)
             }
         }
 
@@ -349,39 +349,121 @@ private struct MonthTrends: View {
     }
 }
 
-private struct DayCell: View {
+/// The month as a grid of small calorie rings, like Activity: each ring fills toward the
+/// calorie goal, in the accent when the day was within 10%, red when over, and a lighter accent
+/// when under. Today is marked in the accent; days still to come are just numbers.
+private struct MonthCalendar: View {
+    var days: [DaySummary]
+    var leading: Int
+    var goal: Double
+    var today: Date
+    var weekdays: [String]
+
+    private let columns = Array(repeating: GridItem(.flexible(), spacing: 6), count: 7)
+
+    var body: some View {
+        VStack(spacing: 14) {
+            LazyVGrid(columns: columns, spacing: 10) {
+                ForEach(Array(weekdays.enumerated()), id: \.offset) { _, symbol in
+                    Text(symbol)
+                        .font(.caption2.weight(.semibold))
+                        .foregroundStyle(.tertiary)
+                }
+                ForEach(0..<leading, id: \.self) { _ in Color.clear.frame(height: 1) }
+                ForEach(days) { day in
+                    DayRing(
+                        day: day,
+                        goal: goal,
+                        isToday: Calendar.current.isDate(day.date, inSameDayAs: today),
+                        isFuture: day.date > today
+                    )
+                }
+            }
+            HStack(spacing: 16) {
+                legend("On target", AnyShapeStyle(.tint))
+                legend("Over", AnyShapeStyle(Color.over))
+                legend("Under", AnyShapeStyle(.tint.opacity(0.4)))
+            }
+            .font(.caption)
+            .foregroundStyle(.secondary)
+            .frame(maxWidth: .infinity)
+        }
+    }
+
+    private func legend(_ title: String, _ style: AnyShapeStyle) -> some View {
+        HStack(spacing: 5) {
+            Circle().strokeBorder(style, lineWidth: 2.5).frame(width: 10, height: 10)
+            Text(title)
+        }
+    }
+}
+
+private struct DayRing: View {
     var day: DaySummary
     var goal: Double
     var isToday: Bool
     var isFuture: Bool
 
+    private let lineWidth: CGFloat = 3.5
+
     var body: some View {
-        let number = Text(day.date.formatted(.dateTime.day()))
-            .font(.footnote.weight(.semibold))
-            .monospacedDigit()
-            .frame(maxWidth: .infinity)
-            .aspectRatio(1, contentMode: .fit)
-        if isToday {
-            number
-                .foregroundStyle(.tint)
-                .overlay(RoundedRectangle(cornerRadius: 10).strokeBorder(.tint, style: StrokeStyle(lineWidth: 1.5, dash: [4, 3])))
-        } else if day.isLogged && !isFuture {
-            number
-                .foregroundStyle(.white)
-                .background(fill, in: .rect(cornerRadius: 10))
-        } else {
-            number
-                .foregroundStyle(.secondary)
-                .background(.fill.tertiary, in: .rect(cornerRadius: 10))
+        ZStack {
+            if !isFuture {
+                Circle()
+                    .stroke(isToday ? AnyShapeStyle(.tint.opacity(0.22)) : AnyShapeStyle(.quaternary), lineWidth: lineWidth)
+                if day.isLogged {
+                    Circle()
+                        .trim(from: 0, to: progress)
+                        .stroke(ringStyle, style: StrokeStyle(lineWidth: lineWidth, lineCap: .round))
+                        .rotationEffect(.degrees(-90))
+                }
+            }
+            Text(day.date.formatted(.dateTime.day()))
+                .font(.system(size: 13, weight: isToday ? .bold : .medium, design: .rounded))
+                .monospacedDigit()
+                .lineLimit(1)
+                .minimumScaleFactor(0.6)
+                .foregroundStyle(numberStyle)
+        }
+        .padding(lineWidth / 2 + 1)
+        .frame(maxWidth: 40)
+        .aspectRatio(1, contentMode: .fit)
+        .frame(maxWidth: .infinity)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(accessibilityText)
+    }
+
+    private var status: CalorieStatus { CalorieStatus(calories: day.totals.calories, goal: goal) }
+
+    private var progress: Double {
+        min(max(day.totals.calories / max(goal, 1), 0.04), 1)
+    }
+
+    private var ringStyle: AnyShapeStyle {
+        switch status {
+        case .on: AnyShapeStyle(.tint)
+        case .over: AnyShapeStyle(Color.over)
+        case .under: AnyShapeStyle(.tint.opacity(0.4))
         }
     }
 
-    private var fill: AnyShapeStyle {
-        switch CalorieStatus(calories: day.totals.calories, goal: goal) {
-        case .over: AnyShapeStyle(Color.over)
-        case .under: AnyShapeStyle(Color.gray)
-        case .on: AnyShapeStyle(.tint)
+    private var numberStyle: AnyShapeStyle {
+        if isToday { return AnyShapeStyle(.tint) }
+        if isFuture { return AnyShapeStyle(.tertiary) }
+        return day.isLogged ? AnyShapeStyle(.primary) : AnyShapeStyle(.secondary)
+    }
+
+    private var accessibilityText: String {
+        let date = day.date.formatted(.dateTime.month(.wide).day())
+        guard !isFuture else { return date }
+        guard day.isLogged else { return "\(date), nothing logged" }
+        let kcal = Int(day.totals.calories.rounded()).formatted()
+        let verdict = switch status {
+        case .on: "on target"
+        case .over: "over goal"
+        case .under: "under goal"
         }
+        return "\(date), \(kcal) calories, \(verdict)"
     }
 }
 

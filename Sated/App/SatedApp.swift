@@ -14,6 +14,7 @@ struct SatedApp: App {
         _coach = State(initialValue: CoachEngine(data: CoachData(container: container, database: .shared)))
         // Alerts use the system label color rather than the accent. Destructive buttons stay red.
         UIView.appearance(whenContainedInInstancesOf: [UIAlertController.self]).tintColor = .label
+        WidgetSync.start(container: container)
     }
 
     var body: some Scene {
@@ -113,6 +114,20 @@ struct AppRoot: View {
             }
             .onChange(of: appearance, initial: true) { _, option in
                 applyAppearance(option)
+            }
+            // Links from the widgets: sated://today, sated://add, sated://trends.
+            .onOpenURL { url in
+                let router = AppRouter.shared
+                switch url.host() {
+                case "add":
+                    router.show(.now)
+                    router.addFood()
+                case "trends":
+                    router.tab = .trends
+                default:
+                    router.show(.now)
+                    router.tab = .today
+                }
             }
             .onChange(of: scenePhase) { _, phase in
                 guard phase == .active else { return }

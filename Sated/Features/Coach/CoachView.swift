@@ -55,7 +55,7 @@ struct CoachView: View {
         }
         .background(Color(.systemGroupedBackground))
         .navigationTitle("Coach")
-        .navigationSubtitle("Apple Intelligence")
+        .navigationSubtitle("On this iPhone")
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 if !coach.messages.isEmpty {

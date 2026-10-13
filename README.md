@@ -17,7 +17,7 @@ Requires Xcode 26 and iOS 26. iPhone only.
    to match (`iCloud.<your bundle id>`).
 4. Set `AppConfig.contactEmail` to a real support address. Open Food Facts asks every app to
    identify itself with one.
-5. Run on an iPhone. The camera, Health and Apple Intelligence need a real device; the
+5. Run on an iPhone. The camera, Health and the on-device model need a real device; the
    simulator covers everything else. Previews load a sample week (App/PreviewSupport.swift).
 
 The entitlements include HealthKit, CloudKit and iCloud key-value storage. Automatic signing
@@ -78,13 +78,24 @@ All of it uses the Foundation Models framework, so nothing leaves the phone.
 - **Summaries** on Today and Trends are written by code in `Models/Summaries.swift`, not by the
   model, so their numbers are always exact.
 
-Coach, Say It and label scanning need Apple Intelligence (iPhone 15 Pro or newer). On other
+Coach, Say It and label scanning need an iPhone that runs Apple's on-device model (iPhone 15 Pro or newer). The app never names the system feature; it says "your iPhone's built-in AI". On other
 iPhones the Coach tab and those buttons are hidden and everything else works.
 
 ## Coach's voice (Kokoro, on device)
 
 Talking to Coach runs entirely on the iPhone: speech-to-text, the on-device model, and the
 spoken reply.
+
+- **Hands free.** The microphone stays on while the voice screen is open
+  (`Services/Voice/Conversation.swift`). Pause for a moment (Short, Medium or Long in
+  Settings › Coach) and Coach answers out loud, then listens again. Start talking while it
+  thinks or speaks and it stops to listen. After 45 seconds of quiet the microphone turns off
+  until Resume.
+- **Voice processing.** The microphone and Coach's voice share one audio engine with Apple's
+  voice processing on: echo cancellation (so Coach doesn't hear itself and you can talk over
+  it) and noise suppression. The mic button on the voice screen opens the system Mic Mode
+  menu, where Voice Isolation keeps background voices out. Words that only repeat what Coach
+  is saying are ignored, in case any of its voice leaks through.
 
 - Spoken replies use **Kokoro**, the same neural voice as Hearken. `Packages/KokoroSwift` and
   `Packages/MisakiSwift` are Hearken's vendored copies (MIT and Apache 2.0), built as static
@@ -100,6 +111,23 @@ spoken reply.
 - Until it's downloaded, and in the Simulator (MLX needs a real GPU), Coach speaks with the best
   Apple voice installed (`Services/Voice/CoachSpeaker.swift`).
 - The first build fetches mlx-swift, which takes a few minutes.
+
+## Widgets
+
+The **SatedWidgets** extension (`SatedWidgets/`) has two widgets:
+
+- **Calories Left**: Home Screen small (calorie ring), and Lock Screen circular gauge,
+  rectangular (kcal left, a bar, protein/carbs/fat) and inline.
+- **Today**: medium (ring and all four macros against goals) and large (adds the meals and the
+  last seven days against the goal line). The + opens Add Food.
+
+The widgets don't read the database. The app writes a small `WidgetSnapshot` (`Shared/`, built
+into both targets) to the `group.com.stephenwarren.sated` App Group whenever the log is saved,
+a setting changes, the day turns over or the app goes to the background
+(`Services/WidgetSync.swift`), and asks WidgetKit to redraw. At midnight the widgets start the
+new day empty on their own. Taps open `sated://today`, `sated://add` or `sated://trends`.
+Ring colors follow the accent picked in Settings; the important parts are marked accentable,
+so tinted and clear Home Screens look right.
 
 ## Logging other days
 
@@ -152,7 +180,7 @@ scripts/          build_foods.py (USDA import)
 - Offline barcodes: USDA's branded foods (~400,000, with UPCs) as an optional download, like the voice.
 - Let people name and save scanned-label foods as favorites.
 - Turn on CloudKit sync; sync goals through iCloud key-value storage.
-- Widgets for the calorie ring and macros, App Intents ("Log my usual breakfast"), and the
+- App Intents ("Log my usual breakfast"), a Control Center "Log Food" control, and the
   Action button.
 - Replace SFSpeechRecognizer with SpeechAnalyzer in `Services/Voice/Dictation.swift`.
 - A real app icon (the current one is a placeholder: a sun rising out of a bowl).

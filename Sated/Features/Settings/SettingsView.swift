@@ -19,10 +19,18 @@ struct SettingsView: View {
     @AppStorage(SettingsKey.confirmVoiceEntries) private var confirmVoiceEntries = true
     @AppStorage(SettingsKey.spokenReplies) private var spokenReplies = true
     @AppStorage(SettingsKey.coachVoice) private var coachVoice = KokoroVoices.defaultID
+    @AppStorage(SettingsKey.coachPause) private var coachPause = CoachPause.medium.seconds
     @State private var model = KokoroModel.shared
     @State private var speaker = CoachSpeaker.shared
     @AppStorage(SettingsKey.accent) private var accent: AccentOption = .orange
     @AppStorage(SettingsKey.appearance) private var appearance: AppearanceOption = .system
+
+    private var appVersion: String {
+        let info = Bundle.main.infoDictionary
+        let version = info?["CFBundleShortVersionString"] as? String ?? "0.1"
+        let build = info?["CFBundleVersion"] as? String ?? "1"
+        return "\(version) (\(build))"
+    }
 
     var body: some View {
         Form {
@@ -56,6 +64,11 @@ struct SettingsView: View {
                     Text(coach.availability.message).font(.footnote).foregroundStyle(.secondary)
                 }
                 Toggle("Confirm Voice Entries", isOn: $confirmVoiceEntries)
+                Picker("Answer After a Pause Of", selection: $coachPause) {
+                    ForEach(CoachPause.allCases) { pause in
+                        Text("\(pause.name) (\(pause.seconds.formatted()) s)").tag(pause.seconds)
+                    }
+                }
                 Toggle("Spoken Replies", isOn: $spokenReplies)
                 if spokenReplies {
                     NaturalVoiceRow(model: model)
@@ -77,7 +90,7 @@ struct SettingsView: View {
             } header: {
                 Text("Coach")
             } footer: {
-                Text("Coach, your voice and its spoken replies all run on this iPhone and never leave it. The natural voice is a one-time \(KokoroModel.approximateSize) download; until then, Coach speaks with the best Apple voice on your phone. With Confirm Voice Entries off, foods you say are logged as soon as every one is matched.")
+                Text("Coach, your voice and its spoken replies all run on this iPhone and never leave it. When you talk with Coach, it answers once you pause for that long, and you can talk over it to interrupt. The natural voice is a one-time \(KokoroModel.approximateSize) download; until then, Coach speaks with the best Apple voice on your phone. With Confirm Voice Entries off, foods you say are logged as soon as every one is matched.")
             }
 
             Section("Appearance") {
@@ -100,6 +113,22 @@ struct SettingsView: View {
             }
 
             Section("About") {
+                // The app icon, from the exports in Developer/app-icons (Assets › AppIconImage),
+                // light and dark.
+                HStack(spacing: 14) {
+                    Image(.appIconImage)
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width: 60, height: 60)
+                        .accessibilityHidden(true)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Sated").font(.headline)
+                        Text("Version \(appVersion)")
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                .padding(.vertical, 4)
                 Text("Coach's natural voice is Kokoro (Apache 2.0), run with KokoroSwift (MIT) and MisakiSwift (Apache 2.0).")
                     .font(.footnote)
                     .foregroundStyle(.secondary)

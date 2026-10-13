@@ -14,6 +14,10 @@ nonisolated extension SettingsKey {
 /// two at a time, so the first words play while the rest is still being made. Without it (or
 /// in the Simulator, where MLX can't run), the best Apple voice installed on the phone reads
 /// the reply instead.
+///
+/// During a spoken conversation the audio plays through the conversation's engine
+/// (`ConversationAudio`), so echo cancellation knows what Coach is saying and you can talk
+/// over it. Otherwise it uses its own engine and audio session.
 @Observable
 final class CoachSpeaker: NSObject {
     static let shared = CoachSpeaker()
@@ -39,6 +43,18 @@ final class CoachSpeaker: NSObject {
     @ObservationIgnored private var pendingBuffers = 0
     @ObservationIgnored private var producing = false
     @ObservationIgnored private var configurationObserver: NSObjectProtocol?
+    /// Called once when the current reply has finished playing (not when it's stopped).
+    @ObservationIgnored private var onFinished: (() -> Void)?
+    /// Turns system-voice audio into Kokoro's format for the conversation engine.
+    @ObservationIgnored private var converter: AVAudioConverter?
+
+    /// The conversation's engine when one is running.
+    private var conversation: ConversationAudio? {
+        ConversationAudio.shared.isRunning ? ConversationAudio.shared : nil
+    }
+
+    /// The player node the reply goes to.
+    private var output: AVAudioPlayerNode { conversation?.player ?? player }
 
     override init() {
         super.init()
@@ -66,21 +82,30 @@ final class CoachSpeaker: NSObject {
         if usesNaturalVoice { KokoroSynth.shared.prewarm() }
     }
 
-    func speak(_ text: String) {
+    /// Speaks `text`. `onFinished` runs when it has all played, and not if it's stopped.
+    func speak(_ text: String, onFinished: (() -> Void)? = nil) {
         stop()
         let prepared = KokoroText.prepare(text)
-        guard !prepared.isEmpty else { return }
+        guard !prepared.isEmpty else {
+            onFinished?()
+            return
+        }
         let current = generation
+        self.onFinished = onFinished
         state = .preparing
         Task {
-            do {
-                try await AudioSessionControl.activateForPlayback()
-            } catch {
-                log.error("Couldn't start audio: \(error.localizedDescription, privacy: .public)")
+            if conversation == nil {
+                do {
+                    try await AudioSessionControl.activateForPlayback()
+                } catch {
+                    log.error("Couldn't start audio: \(error.localizedDescription, privacy: .public)")
+                }
             }
             guard current == generation else { return }
             if usesNaturalVoice {
                 producer = Task { await speakNaturally(Self.groups(prepared), generation: current) }
+            } else if conversation != nil {
+                speakSystemVoiceInConversation(prepared, generation: current)
             } else {
                 speakWithSystemVoice(prepared)
             }
@@ -89,36 +114,43 @@ final class CoachSpeaker: NSObject {
 
     func stop() {
         generation += 1
+        onFinished = nil
         producer?.cancel()
         producer = nil
         producing = false
         pendingBuffers = 0
         player.stop()
+        conversation?.player.stop()
         if engine.isRunning { engine.stop() }
         if synthesizer.isSpeaking { synthesizer.stopSpeaking(at: .immediate) }
         if state != .idle {
             state = .idle
-            AudioSessionControl.deactivate()
+            if conversation == nil { AudioSessionControl.deactivate() }
         }
     }
 
-    /// The reply is done: give the audio back so other apps' music comes back up.
+    /// The reply is done: give the audio back so other apps' music comes back up (the
+    /// conversation keeps its own audio until it ends).
     private func finished() {
         if engine.isRunning { engine.stop() }
         state = .idle
-        AudioSessionControl.deactivate()
+        if conversation == nil { AudioSessionControl.deactivate() }
+        let done = onFinished
+        onFinished = nil
+        done?()
     }
 
     // MARK: Natural voice
 
     /// Generates sentence groups one after another and queues each as it's ready.
     private func speakNaturally(_ groups: [String], generation current: Int) async {
-        guard startEngine() else {
+        guard conversation != nil || startEngine() else {
             speakWithSystemVoice(groups.joined(separator: " "))
             return
         }
+        let output = self.output
         producing = true
-        player.play()
+        output.play()
         for (index, piece) in groups.enumerated() {
             guard !Task.isCancelled, current == generation else { return }
             let samples: [Float]
@@ -132,14 +164,19 @@ final class CoachSpeaker: NSObject {
                 generation += 1
                 producing = false
                 pendingBuffers = 0
-                player.stop()
-                speakWithSystemVoice(groups[index...].joined(separator: " "))
+                output.stop()
+                let rest = groups[index...].joined(separator: " ")
+                if conversation != nil {
+                    speakSystemVoiceInConversation(rest, generation: generation)
+                } else {
+                    speakWithSystemVoice(rest)
+                }
                 return
             }
             guard !Task.isCancelled, current == generation, let buffer = makeBuffer(samples) else { continue }
             pendingBuffers += 1
             state = .speaking
-            player.scheduleBuffer(buffer, completionCallbackType: .dataPlayedBack) { [weak self] _ in
+            output.scheduleBuffer(buffer, completionCallbackType: .dataPlayedBack) { [weak self] _ in
                 Task { @MainActor in self?.bufferFinished(generation: current) }
             }
         }
@@ -206,6 +243,59 @@ final class CoachSpeaker: NSObject {
         utterance.rate = AVSpeechUtteranceDefaultSpeechRate
         state = .speaking
         synthesizer.speak(utterance)
+    }
+
+    /// The system voice, played through the conversation engine: the synthesizer writes audio
+    /// buffers instead of playing them, and each is converted and queued like Kokoro's.
+    private func speakSystemVoiceInConversation(_ text: String, generation current: Int) {
+        guard let conversation else { return }
+        let utterance = AVSpeechUtterance(string: text)
+        utterance.voice = Self.bestSystemVoice
+        utterance.rate = AVSpeechUtteranceDefaultSpeechRate
+        producing = true
+        state = .speaking
+        conversation.player.play()
+        let target = format
+        synthesizer.write(utterance) { [weak self] buffer in
+            guard let pcm = buffer as? AVAudioPCMBuffer else { return }
+            let isLast = pcm.frameLength == 0
+            Task { @MainActor in
+                guard let self, current == self.generation else { return }
+                if isLast {
+                    self.producing = false
+                    if self.pendingBuffers == 0 { self.finished() }
+                    return
+                }
+                guard let converted = self.convert(pcm, to: target) else { return }
+                self.pendingBuffers += 1
+                conversation.player.scheduleBuffer(converted, completionCallbackType: .dataPlayedBack) { [weak self] _ in
+                    Task { @MainActor in self?.bufferFinished(generation: current) }
+                }
+            }
+        }
+    }
+
+    private func convert(_ buffer: AVAudioPCMBuffer, to target: AVAudioFormat) -> AVAudioPCMBuffer? {
+        if buffer.format == target { return buffer }
+        if converter?.inputFormat != buffer.format {
+            converter = AVAudioConverter(from: buffer.format, to: target)
+        }
+        guard let converter else { return nil }
+        let ratio = target.sampleRate / buffer.format.sampleRate
+        let capacity = AVAudioFrameCount(Double(buffer.frameLength) * ratio) + 1024
+        guard let output = AVAudioPCMBuffer(pcmFormat: target, frameCapacity: capacity) else { return nil }
+        var fed = false
+        var error: NSError?
+        converter.convert(to: output, error: &error) { _, status in
+            if fed {
+                status.pointee = .noDataNow
+                return nil
+            }
+            fed = true
+            status.pointee = .haveData
+            return buffer
+        }
+        return error == nil && output.frameLength > 0 ? output : nil
     }
 
     fileprivate func systemVoiceFinished() {
