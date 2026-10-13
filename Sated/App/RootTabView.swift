@@ -17,28 +17,51 @@ struct RootTabView: View {
     var body: some View {
         @Bindable var router = router
         TabView(selection: $router.tab) {
-            Tab("Today", systemImage: "fork.knife", value: AppTab.today) {
+            // Icons only, no titles under them. Each icon keeps its name for VoiceOver.
+            Tab(value: AppTab.today) {
                 NavigationStack { TodayView() }
+            } label: {
+                TabIcon("Today", systemImage: "fork.knife")
             }
 
-            Tab("Trends", systemImage: "chart.bar.fill", value: AppTab.trends) {
+            Tab(value: AppTab.trends) {
                 NavigationStack { TrendsView() }
+            } label: {
+                TabIcon("Trends", systemImage: "chart.bar.fill")
             }
 
             if OnDeviceModel.isOffered {
-                Tab("Coach", systemImage: "bubble.left.and.text.bubble.right.fill", value: AppTab.coach) {
+                Tab(value: AppTab.coach) {
                     NavigationStack { CoachView() }
+                } label: {
+                    TabIcon("Coach", systemImage: "bubble.left.and.text.bubble.right.fill")
                 }
             }
 
             Tab(value: AppTab.add, role: .search) {
                 AddFoodView()
             } label: {
-                Label("Add Food", systemImage: "plus")
+                TabIcon("Add Food", systemImage: "plus")
             }
         }
         .tabViewSearchActivation(.searchTabSelection)
         .tabBarMinimizeBehavior(.onScrollDown)
+    }
+}
+
+/// A tab bar item with just its symbol; the title is read by VoiceOver but not shown.
+private struct TabIcon: View {
+    var title: String
+    var systemImage: String
+
+    init(_ title: String, systemImage: String) {
+        self.title = title
+        self.systemImage = systemImage
+    }
+
+    var body: some View {
+        Label(title, systemImage: systemImage)
+            .labelStyle(.iconOnly)
     }
 }
 
