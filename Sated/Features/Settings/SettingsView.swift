@@ -1,0 +1,173 @@
+import SwiftData
+import SwiftUI
+import UniformTypeIdentifiers
+
+/// Goals, Apple Health, Coach, appearance and data.
+struct SettingsView: View {
+    @Environment(\.dismiss) private var dismiss
+    @Environment(\.modelContext) private var context
+    @Environment(HealthService.self) private var health
+    @Environment(CoachEngine.self) private var coach
+
+    @AppStorage(SettingsKey.goalCalories) private var goalCalories = Goals.defaults.calories
+    @AppStorage(SettingsKey.goalProtein) private var goalProtein = Goals.defaults.protein
+    @AppStorage(SettingsKey.goalCarbs) private var goalCarbs = Goals.defaults.carbs
+    @AppStorage(SettingsKey.goalFat) private var goalFat = Goals.defaults.fat
+    @AppStorage(SettingsKey.goalFiber) private var goalFiber = Goals.defaults.fiber
+    @AppStorage(SettingsKey.saveToHealth) private var saveToHealth = true
+    @AppStorage(SettingsKey.readActiveEnergy) private var readActiveEnergy = true
+    @AppStorage(SettingsKey.confirmVoiceEntries) private var confirmVoiceEntries = true
+    @AppStorage(SettingsKey.accent) private var accent: AccentOption = .orange
+    @AppStorage(SettingsKey.appearance) private var appearance: AppearanceOption = .system
+
+    var body: some View {
+        Form {
+            Section {
+                GoalRow(title: "Calories", unit: "kcal", color: accent.color, value: $goalCalories, range: 1200...6000, step: 50)
+                GoalRow(title: "Protein", unit: "g", color: Macro.protein.color, value: $goalProtein, range: 20...400, step: 5)
+                GoalRow(title: "Carbs", unit: "g", color: Macro.carbs.color, value: $goalCarbs, range: 20...600, step: 5)
+                GoalRow(title: "Fat", unit: "g", color: Macro.fat.color, value: $goalFat, range: 20...250, step: 5)
+                GoalRow(title: "Fiber", unit: "g", color: Macro.fiber.color, value: $goalFiber, range: 10...80, step: 1)
+            } header: {
+                Text("Daily Goals")
+            } footer: {
+                Text(macroCheck)
+            }
+
+            if health.isAvailable {
+                Section {
+                    Toggle("Save Meals to Health", isOn: $saveToHealth)
+                    Toggle("Show Active Energy", isOn: $readActiveEnergy)
+                        .onChange(of: readActiveEnergy) { Task { await health.refreshActiveEnergy() } }
+                } header: {
+                    Text("Apple Health")
+                } footer: {
+                    Text("Meals appear in Health as dietary energy, protein, carbohydrates, fat and fiber. Change what Sated can read and write in the Health app › Sharing › Apps › Sated.")
+                }
+            }
+
+            Section {
+                LabeledContent("On-Device Model", value: coach.availability.statusText)
+                if coach.availability != .available {
+                    Text(coach.availability.message).font(.footnote).foregroundStyle(.secondary)
+                }
+                Toggle("Confirm Voice Entries", isOn: $confirmVoiceEntries)
+            } header: {
+                Text("Coach")
+            } footer: {
+                Text("Conversations and voice never leave this iPhone. With Confirm Voice Entries off, foods you say are logged as soon as every one is matched.")
+            }
+
+            Section("Appearance") {
+                Picker("Appearance", selection: $appearance) {
+                    ForEach(AppearanceOption.allCases) { Text($0.name).tag($0) }
+                }
+                .pickerStyle(.segmented)
+                AccentPicker(selection: $accent)
+            }
+
+            Section {
+                LabeledContent("iCloud Sync", value: AppConfig.cloudSyncEnabled ? "On" : "This iPhone only")
+                ShareLink(item: CSVExport(text: FoodLog.csv(in: context)), preview: SharePreview("Sated food log")) {
+                    Label("Export as CSV", systemImage: "square.and.arrow.up")
+                }
+            } header: {
+                Text("Your Data")
+            } footer: {
+                Text("Your log lives on this iPhone and in your private iCloud. Sated has no servers and can't see your data.")
+            }
+
+            Section("About") {
+                Text(AppConfig.foodDataCredit)
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                Text("Sated is for general wellness and isn't medical advice. Talk with a doctor or registered dietitian before big changes to how you eat.")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .navigationTitle("Settings")
+        .toolbar {
+            ToolbarItem(placement: .confirmationAction) {
+                Button("Done", systemImage: "checkmark", role: .confirm) { dismiss() }
+            }
+        }
+    }
+
+    /// Calories implied by the macro goals, so mismatched goals are easy to spot.
+    private var macroCheck: String {
+        let implied = goalProtein * 4 + goalCarbs * 4 + goalFat * 9
+        return "Your protein, carbs and fat goals add up to \(Int(implied.rounded()).formatted()) kcal."
+    }
+}
+
+private struct GoalRow: View {
+    var title: String
+    var unit: String
+    var color: Color
+    @Binding var value: Double
+    var range: ClosedRange<Double>
+    var step: Double
+
+    var body: some View {
+        Stepper(value: $value, in: range, step: step) {
+            HStack(spacing: 10) {
+                RoundedRectangle(cornerRadius: 3).fill(color).frame(width: 10, height: 10)
+                Text(title)
+                Spacer()
+                Text("\(Int(value).formatted()) \(unit)")
+                    .foregroundStyle(.secondary)
+                    .monospacedDigit()
+            }
+        }
+    }
+}
+
+private struct AccentPicker: View {
+    @Binding var selection: AccentOption
+
+    var body: some View {
+        HStack {
+            ForEach(AccentOption.allCases) { option in
+                Button {
+                    selection = option
+                } label: {
+                    Circle()
+                        .fill(option.color)
+                        .frame(width: 32, height: 32)
+                        .overlay {
+                            if option == selection {
+                                Image(systemName: "checkmark")
+                                    .font(.footnote.bold())
+                                    .foregroundStyle(.white)
+                            }
+                        }
+                        .padding(3)
+                        .overlay(Circle().strokeBorder(option == selection ? option.color : .clear, lineWidth: 2))
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(option.name)
+                .accessibilityAddTraits(option == selection ? .isSelected : [])
+                if option != AccentOption.allCases.last { Spacer(minLength: 0) }
+            }
+        }
+        .padding(.vertical, 4)
+    }
+}
+
+/// The log as a .csv file for the share sheet.
+nonisolated struct CSVExport: Transferable {
+    var text: String
+
+    static var transferRepresentation: some TransferRepresentation {
+        DataRepresentation(exportedContentType: .commaSeparatedText) { export in
+            Data(export.text.utf8)
+        }
+        .suggestedFileName("Sated Food Log.csv")
+    }
+}
+
+#Preview {
+    NavigationStack { SettingsView() }
+        .previewEnvironment()
+}
