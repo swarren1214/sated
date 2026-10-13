@@ -47,6 +47,7 @@ struct TrendsView: View {
             }
             .padding(.horizontal, 16)
             .padding(.bottom, 24)
+            .readableWidth(760)
         }
         .background(Color(.systemGroupedBackground))
         .navigationTitle("Trends")

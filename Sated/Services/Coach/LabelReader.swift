@@ -25,8 +25,9 @@ nonisolated struct NutritionLabel {
     var fiber: Double
 }
 
-/// Reads a Nutrition Facts panel from text the camera recognized. The model copies numbers
-/// from the label; it is told never to estimate.
+/// The fallback for labels the rules in `LabelParser` can't read (unusual layouts, curved or
+/// glared packaging): the on-device model reads the panel's text. It only ever sees text from
+/// inside the panel, and is told to copy numbers, never estimate them.
 enum LabelReader {
     nonisolated enum ReadError: LocalizedError {
         case notALabel
@@ -39,25 +40,25 @@ enum LabelReader {
     static let instructions = """
     You read a US or Canadian Nutrition Facts label from text recognized by a camera. \
     Copy the per-serving values exactly as printed. Never estimate or calculate a value that isn't on the label. \
+    On labels with two columns (per serving and per container), use the per-serving column. \
     The text may be out of order or contain other words from the package; ignore anything that isn't the label.
     """
 
-    static func read(_ lines: [String], name: String) async throws -> FoodItem {
+    static func read(_ lines: [String]) async throws -> LabelReading {
         let text = lines.joined(separator: "\n")
         let lowered = text.lowercased()
-        guard lowered.contains("calorie"), lowered.contains("protein") || lowered.contains("fat") else {
-            throw ReadError.notALabel
-        }
+        guard lowered.contains("calorie") else { throw ReadError.notALabel }
         let session = LanguageModelSession(instructions: instructions)
         let label = try await session.respond(to: "Label text:\n\(text)", generating: NutritionLabel.self).content
         guard label.calories >= 0, label.calories < 3000 else { throw ReadError.notALabel }
-        return FoodItem(
-            id: "label.\(UUID().uuidString)",
-            name: name,
-            serving: label.servingSize.isEmpty ? "1 serving" : label.servingSize,
-            grams: label.servingGrams,
-            nutrients: Nutrients(calories: label.calories, protein: label.protein, carbs: label.carbs, fat: label.fat, fiber: label.fiber),
-            source: .label
+        return LabelReading(
+            servingText: label.servingSize.isEmpty ? nil : label.servingSize,
+            servingGrams: label.servingGrams,
+            calories: label.calories,
+            fat: label.fat,
+            carbs: label.carbs,
+            protein: label.protein,
+            fiber: label.fiber
         )
     }
 }

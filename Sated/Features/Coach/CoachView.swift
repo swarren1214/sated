@@ -43,6 +43,7 @@ struct CoachView: View {
                 }
                 .padding(.horizontal, 16)
                 .padding(.vertical, 12)
+                .readableWidth()
             }
             .scrollDismissesKeyboard(.interactively)
             .onChange(of: coach.messages.count) {
@@ -55,7 +56,7 @@ struct CoachView: View {
         }
         .background(Color(.systemGroupedBackground))
         .navigationTitle("Coach")
-        .navigationSubtitle("On this iPhone")
+        .navigationSubtitle("On this \(DeviceName.current)")
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 if !coach.messages.isEmpty {
@@ -79,7 +80,7 @@ struct CoachView: View {
     private var intro: some View {
         VStack(alignment: .leading, spacing: 10) {
             OnDeviceBadge()
-            Text("Ask about what you've eaten, what's left today, or what to eat next. Coach runs on this iPhone and reads only your Sated log.")
+            Text("Ask about what you've eaten, what's left today, or what to eat next. Coach runs on this \(DeviceName.current) and reads only your Sated log.")
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
             if coach.availability != .available {
@@ -157,6 +158,7 @@ struct CoachView: View {
             .padding(.horizontal, 16)
         }
         .padding(.bottom, 8)
+        .readableWidth()
     }
 
     private func send() {

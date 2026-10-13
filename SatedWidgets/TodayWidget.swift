@@ -10,7 +10,7 @@ struct TodayWidget: Widget {
         }
         .configurationDisplayName("Today")
         .description("Calories, protein, carbs, fat and fiber against your goals.")
-        .supportedFamilies([.systemMedium, .systemLarge])
+        .supportedFamilies([.systemMedium, .systemLarge, .systemExtraLarge])
     }
 }
 
@@ -22,7 +22,7 @@ struct TodayWidgetView: View {
 
     var body: some View {
         Group {
-            if family == .systemLarge {
+            if family == .systemLarge || family == .systemExtraLarge {
                 large
             } else {
                 medium

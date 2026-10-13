@@ -13,37 +13,41 @@ enum AppTab: Hashable {
 /// button back into the capsule.
 struct RootTabView: View {
     @Environment(AppRouter.self) private var router
+    @Environment(\.horizontalSizeClass) private var sizeClass
 
     var body: some View {
         @Bindable var router = router
         TabView(selection: $router.tab) {
-            // Icons only, no titles under them. Each icon keeps its name for VoiceOver.
+            // Icons only on iPhone, no titles under them; each keeps its name for VoiceOver.
+            // On iPad the names show, in the top tab bar and the sidebar.
             Tab(value: AppTab.today) {
                 NavigationStack { TodayView() }
             } label: {
-                TabIcon("Today", systemImage: "fork.knife")
+                TabIcon("Today", systemImage: "fork.knife", showsTitle: showsTitles)
             }
 
             Tab(value: AppTab.trends) {
                 NavigationStack { TrendsView() }
             } label: {
-                TabIcon("Trends", systemImage: "chart.bar.fill")
+                TabIcon("Trends", systemImage: "chart.bar.fill", showsTitle: showsTitles)
             }
 
             if OnDeviceModel.isOffered {
                 Tab(value: AppTab.coach) {
                     NavigationStack { CoachView() }
                 } label: {
-                    TabIcon("Coach", systemImage: "bubble.left.and.text.bubble.right.fill")
+                    TabIcon("Coach", systemImage: "bubble.left.and.text.bubble.right.fill", showsTitle: showsTitles)
                 }
             }
 
             Tab(value: AppTab.add, role: .search) {
                 AddFoodView()
             } label: {
-                TabIcon("Add Food", systemImage: "plus")
+                TabIcon("Add Food", systemImage: "plus", showsTitle: showsTitles)
             }
         }
+        // iPad: a top tab bar that opens into a sidebar. iPhone: the usual bottom tab bar.
+        .tabViewStyle(.sidebarAdaptable)
         .tabViewSearchActivation(.searchTabSelection)
         .tabBarMinimizeBehavior(.onScrollDown)
     }
@@ -53,16 +57,26 @@ struct RootTabView: View {
 private struct TabIcon: View {
     var title: String
     var systemImage: String
+    var showsTitle: Bool
 
-    init(_ title: String, systemImage: String) {
+    init(_ title: String, systemImage: String, showsTitle: Bool) {
         self.title = title
         self.systemImage = systemImage
+        self.showsTitle = showsTitle
     }
 
     var body: some View {
-        Label(title, systemImage: systemImage)
-            .labelStyle(.iconOnly)
+        if showsTitle {
+            Label(title, systemImage: systemImage)
+        } else {
+            Label(title, systemImage: systemImage)
+                .labelStyle(.iconOnly)
+        }
     }
+}
+
+extension RootTabView {
+    private var showsTitles: Bool { sizeClass == .regular }
 }
 
 #Preview {

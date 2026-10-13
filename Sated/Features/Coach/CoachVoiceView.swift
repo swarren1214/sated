@@ -45,6 +45,7 @@ struct CoachVoiceView: View {
             }
             .padding(.horizontal, 16)
             .padding(.bottom, 8)
+            .readableWidth(640)
         }
         .voiceScreenBackground()
         .task {
@@ -235,7 +236,7 @@ struct CoachVoiceView: View {
             Button {
                 model.download()
             } label: {
-                Label("Get Coach's natural voice (\(KokoroModel.approximateSize), runs on this iPhone)", systemImage: "arrow.down.circle")
+                Label("Get Coach's natural voice (\(KokoroModel.approximateSize), runs on this \(DeviceName.current))", systemImage: "arrow.down.circle")
                     .font(.footnote.weight(.medium))
                     .foregroundStyle(accent.color)
             }

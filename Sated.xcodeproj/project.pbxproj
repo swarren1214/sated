@@ -393,10 +393,11 @@
 				INFOPLIST_KEY_NSHealthShareUsageDescription = "Sated reads your active energy to show calories burned on Today.";
 				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "Sated saves the calories, protein, carbs, fat and fiber you log to Apple Health.";
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Sated listens when you say what you ate or ask Coach a question.";
-				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "Sated turns what you say into text on this iPhone, so you can log food and talk to Coach.";
+				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "Sated turns what you say into text on this device, so you can log food and talk to Coach.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = UIInterfaceOrientationPortrait;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -410,7 +411,7 @@
 				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = 1;
+				TARGETED_DEVICE_FAMILY = "1,2";
 			};
 			name = Debug;
 		};
@@ -433,10 +434,11 @@
 				INFOPLIST_KEY_NSHealthShareUsageDescription = "Sated reads your active energy to show calories burned on Today.";
 				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "Sated saves the calories, protein, carbs, fat and fiber you log to Apple Health.";
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Sated listens when you say what you ate or ask Coach a question.";
-				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "Sated turns what you say into text on this iPhone, so you can log food and talk to Coach.";
+				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "Sated turns what you say into text on this device, so you can log food and talk to Coach.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = UIInterfaceOrientationPortrait;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -450,7 +452,7 @@
 				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = 1;
+				TARGETED_DEVICE_FAMILY = "1,2";
 			};
 			name = Release;
 		};
@@ -469,7 +471,7 @@
 				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
 				SWIFT_EMIT_LOC_STRINGS = NO;
 				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = 1;
+				TARGETED_DEVICE_FAMILY = "1,2";
 				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Sated.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Sated";
 			};
 			name = Debug;
@@ -489,7 +491,7 @@
 				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
 				SWIFT_EMIT_LOC_STRINGS = NO;
 				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = 1;
+				TARGETED_DEVICE_FAMILY = "1,2";
 				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Sated.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Sated";
 			};
 			name = Release;
@@ -518,7 +520,7 @@
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = 1;
+				TARGETED_DEVICE_FAMILY = "1,2";
 			};
 			name = Debug;
 		};
@@ -546,7 +548,7 @@
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = 1;
+				TARGETED_DEVICE_FAMILY = "1,2";
 			};
 			name = Release;
 		};

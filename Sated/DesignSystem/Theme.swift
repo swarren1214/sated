@@ -78,6 +78,20 @@ enum Macro: String, CaseIterable, Identifiable {
     }
 }
 
+/// "iPhone" or "iPad", for text that names the device ("Coach runs on this iPad").
+enum DeviceName {
+    static var current: String {
+        UIDevice.current.userInterfaceIdiom == .pad ? "iPad" : "iPhone"
+    }
+}
+
+extension View {
+    /// Keeps content to a comfortable reading width on iPad, centered; no change on iPhone.
+    func readableWidth(_ maxWidth: CGFloat = 720) -> some View {
+        frame(maxWidth: maxWidth).frame(maxWidth: .infinity)
+    }
+}
+
 extension Color {
     init(hex: UInt32) {
         self.init(

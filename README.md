@@ -2,10 +2,11 @@
 
 A native iPhone app for tracking calories, protein, carbs, fat and fiber, with day, week and
 month summaries and an on-device coach you can type or talk to. SwiftUI with Liquid Glass,
-SwiftData for the log, the user's own iCloud as the only backend, and Apple's on-device model
-for the coach. No accounts and no servers.
+SwiftData for the log, the user's own iCloud for personal data, and Apple's on-device model
+for the coach. A silent anonymous Supabase session authenticates optional shared API calls; no
+food log or health data is stored there.
 
-Requires Xcode 26 and iOS 26. iPhone only.
+Requires Xcode 26 and iOS 26 or iPadOS 26. iPhone and iPad.
 
 ## First run
 
@@ -61,8 +62,20 @@ the user's private iCloud database:
   (`Services/Food/OpenFoodFacts.swift`). Reads are limited to 15 a minute per person, which
   one-at-a-time scanning never reaches. Sated never calls their search API, which is limited much
   more tightly. The data is ODbL; Settings › About credits it.
-- **Nutrition labels** are read entirely on the iPhone: VisionKit recognizes the text and the
-  on-device model copies the numbers into a structured label (`Services/Coach/LabelReader.swift`).
+- **Nutrition labels** are read entirely on the device, without the AI model in the normal case
+  (`Services/Food/LabelParser.swift`, `Features/Log/LabelScan.swift`):
+  1. **Find the panel.** Of everything the camera reads, only text near the "Nutrition Facts"
+     heading and the panel's own words (Calories, Total Fat, Sodium…) counts, plus the values on
+     those rows. Front-of-package claims and ingredients are left out. The panel is outlined live.
+  2. **Read it with rules.** The format is regulated, so "Calories 230", "Total Fat 8g",
+     "<1g", per-serving columns and Canada's bilingual labels are matched directly, with common
+     camera slips fixed ("Og" → "0g"). Nothing is estimated.
+  3. **Vote and check.** Each value has to be read the same way three times, and calories have
+     to agree with 4/4/9 × protein/carbs/fat within 25%. Numbers that don't add up are read again,
+     then flagged.
+  4. **Review.** It stops by itself, takes a picture of the panel, and shows every value to check
+     and edit before adding. If it's stuck, Read with AI (the on-device model, given only the
+     panel's text, `Services/Coach/LabelReader.swift`) and Enter Manually appear.
 
 ## On-device AI
 
@@ -111,6 +124,17 @@ spoken reply.
 - Until it's downloaded, and in the Simulator (MLX needs a real GPU), Coach speaks with the best
   Apple voice installed (`Services/Voice/CoachSpeaker.swift`).
 - The first build fetches mlx-swift, which takes a few minutes.
+
+## iPad
+
+- The tab bar becomes iPad's top tab bar, which opens into a sidebar; tab names show there.
+- Today puts the calorie card, macros and summary on the left and the meals on the right.
+  Trends, Coach, Add Food and the voice screens keep a comfortable reading width.
+- Every orientation and multitasking size works; the layouts switch on horizontal size class,
+  so a narrow Split View or Slide Over window gets the iPhone layout.
+- With a keyboard: ⌘N opens Add Food, ⌘1 to ⌘3 switch tabs (also in the menu bar).
+- Text that names the device says "iPad" there (`DeviceName` in `DesignSystem/Theme.swift`).
+- Widgets work on the iPad Home Screen too, including an extra-large Today.
 
 ## Widgets
 
@@ -186,3 +210,9 @@ scripts/          build_foods.py (USDA import)
 - A real app icon (the current one is a placeholder: a sun rising out of a bowl).
 
 Sated is for general wellness and isn't medical advice.
+
+## Shared API identity
+
+Sated silently creates and refreshes an anonymous Supabase session in the Keychain, then uses
+its bearer token for the shared Lifestyle API. The app remains usable offline and does not upload
+food logs, health data, or coach conversations.

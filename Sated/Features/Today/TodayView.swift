@@ -113,46 +113,69 @@ private struct DayLog: View {
         return Meal.allCases.filter { !logged.contains($0) }
     }
 
+    @Environment(\.horizontalSizeClass) private var sizeClass
+
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 22) {
-                CalorieCard(totals: totals, goals: goals, active: Calendar.current.isDateInToday(day) ? health.activeEnergyToday : nil)
-
-                VStack(alignment: .leading, spacing: 8) {
-                    SectionHeader("Macros")
-                    HStack(spacing: 8) {
-                        ForEach(Macro.allCases) { macro in
-                            MacroRingTile(macro: macro, value: macro.value(in: totals), goal: macro.goal(in: goals))
-                        }
+            Group {
+                if sizeClass == .regular {
+                    // iPad: the day's numbers on the left, its meals on the right.
+                    HStack(alignment: .top, spacing: 24) {
+                        VStack(alignment: .leading, spacing: 22) { overview }
+                            .frame(maxWidth: .infinity)
+                        meals
+                            .frame(maxWidth: .infinity)
                     }
-                }
-
-                // The summary talks about what's left, so it's for today only.
-                if !entries.isEmpty, Calendar.current.isDateInToday(day) {
-                    SummaryCard(text: Summaries.dayText(totals: totals, goals: goals, openMeals: openMeals.filter { $0 != .snack }))
-                }
-
-                VStack(alignment: .leading, spacing: 8) {
-                    SectionHeader(title: "Meals") {
-                        Button("Add Food", systemImage: "plus") { router.addFood() }
-                            .font(.body)
+                    .readableWidth(1100)
+                } else {
+                    VStack(alignment: .leading, spacing: 22) {
+                        overview
+                        meals
                     }
-                    VStack(spacing: 0) {
-                        ForEach(Meal.allCases) { meal in
-                            let items = entries.filter { $0.meal == meal }
-                            MealRow(meal: meal, entries: items, day: day)
-                            if meal != Meal.allCases.last {
-                                Divider().padding(.leading, 62)
-                            }
-                        }
-                    }
-                    .background(Color(.secondarySystemGroupedBackground), in: .rect(cornerRadius: 22))
                 }
             }
-            .padding(.horizontal, 16)
+            .padding(.horizontal, sizeClass == .regular ? 24 : 16)
             .padding(.bottom, 24)
         }
         .background(Color(.systemGroupedBackground))
+    }
+
+    @ViewBuilder
+    private var overview: some View {
+        CalorieCard(totals: totals, goals: goals, active: Calendar.current.isDateInToday(day) ? health.activeEnergyToday : nil)
+
+        VStack(alignment: .leading, spacing: 8) {
+            SectionHeader("Macros")
+            HStack(spacing: 8) {
+                ForEach(Macro.allCases) { macro in
+                    MacroRingTile(macro: macro, value: macro.value(in: totals), goal: macro.goal(in: goals))
+                }
+            }
+        }
+
+        // The summary talks about what's left, so it's for today only.
+        if !entries.isEmpty, Calendar.current.isDateInToday(day) {
+            SummaryCard(text: Summaries.dayText(totals: totals, goals: goals, openMeals: openMeals.filter { $0 != .snack }))
+        }
+    }
+
+    private var meals: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            SectionHeader(title: "Meals") {
+                Button("Add Food", systemImage: "plus") { router.addFood() }
+                    .font(.body)
+            }
+            VStack(spacing: 0) {
+                ForEach(Meal.allCases) { meal in
+                    let items = entries.filter { $0.meal == meal }
+                    MealRow(meal: meal, entries: items, day: day)
+                    if meal != Meal.allCases.last {
+                        Divider().padding(.leading, 62)
+                    }
+                }
+            }
+            .background(Color(.secondarySystemGroupedBackground), in: .rect(cornerRadius: 22))
+        }
     }
 }
 

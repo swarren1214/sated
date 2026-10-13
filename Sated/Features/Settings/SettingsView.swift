@@ -90,7 +90,7 @@ struct SettingsView: View {
             } header: {
                 Text("Coach")
             } footer: {
-                Text("Coach, your voice and its spoken replies all run on this iPhone and never leave it. When you talk with Coach, it answers once you pause for that long, and you can talk over it to interrupt. The natural voice is a one-time \(KokoroModel.approximateSize) download; until then, Coach speaks with the best Apple voice on your phone. With Confirm Voice Entries off, foods you say are logged as soon as every one is matched.")
+                Text("Coach, your voice and its spoken replies all run on this \(DeviceName.current) and never leave it. When you talk with Coach, it answers once you pause for that long, and you can talk over it to interrupt. The natural voice is a one-time \(KokoroModel.approximateSize) download; until then, Coach speaks with the best Apple voice on your \(DeviceName.current). With Confirm Voice Entries off, foods you say are logged as soon as every one is matched.")
             }
 
             Section("Appearance") {
@@ -102,14 +102,14 @@ struct SettingsView: View {
             }
 
             Section {
-                LabeledContent("iCloud Sync", value: AppConfig.cloudSyncEnabled ? "On" : "This iPhone only")
+                LabeledContent("iCloud Sync", value: AppConfig.cloudSyncEnabled ? "On" : "This \(DeviceName.current) only")
                 ShareLink(item: CSVExport(text: FoodLog.csv(in: context)), preview: SharePreview("Sated food log")) {
                     Label("Export as CSV", systemImage: "square.and.arrow.up")
                 }
             } header: {
                 Text("Your Data")
             } footer: {
-                Text("Your log lives on this iPhone and in your private iCloud. Sated has no servers and can't see your data.")
+                Text("Your log lives on this \(DeviceName.current) and in your private iCloud. Sated has no servers and can't see your data.")
             }
 
             Section("About") {
@@ -162,7 +162,7 @@ private struct NaturalVoiceRow: View {
     var body: some View {
         switch model.state {
         case .unavailable:
-            LabeledContent("Natural Voice", value: "Needs a real iPhone")
+            LabeledContent("Natural Voice", value: "Needs a real device")
         case .notDownloaded:
             Button {
                 model.download()
@@ -180,7 +180,7 @@ private struct NaturalVoiceRow: View {
                 ProgressView(value: fraction)
             }
         case .ready:
-            LabeledContent("Natural Voice", value: "On this iPhone")
+            LabeledContent("Natural Voice", value: "On this \(DeviceName.current)")
                 .swipeActions {
                     Button(role: .destructive) { model.remove() } label: {
                         Image(systemName: "trash").accessibilityLabel("Remove")

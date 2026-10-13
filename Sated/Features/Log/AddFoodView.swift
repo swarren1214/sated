@@ -7,6 +7,7 @@ struct AddFoodView: View {
     @Environment(AppRouter.self) private var router
     @Environment(FoodDatabase.self) private var database
     @Environment(\.modelContext) private var context
+    @Environment(\.horizontalSizeClass) private var sizeClass
     @AppStorage(SettingsKey.goalCalories) private var goalCalories = Goals.defaults.calories
     @AppStorage(SettingsKey.goalProtein) private var goalProtein = Goals.defaults.protein
     @AppStorage(SettingsKey.goalFiber) private var goalFiber = Goals.defaults.fiber
@@ -74,7 +75,7 @@ struct AddFoodView: View {
                         }
                     }
                     Section {} footer: {
-                        Text("Nutrition from USDA FoodData Central, stored on your iPhone so search works offline.")
+                        Text("Nutrition from USDA FoodData Central, stored on your \(DeviceName.current) so search works offline.")
                     }
                 } else {
                     let results = database.search(query)
@@ -93,6 +94,10 @@ struct AddFoodView: View {
                     }
                 }
             }
+            // A comfortable width on iPad, on the same background as the list.
+            .frame(maxWidth: sizeClass == .regular ? 820 : .infinity)
+            .frame(maxWidth: .infinity)
+            .background(Color(.systemGroupedBackground))
             .navigationTitle("Add Food")
             .navigationSubtitle(router.isToday ? "" : "Adding to \(router.day.formatted(.dateTime.weekday(.wide).month().day()))")
             .navigationDestination(for: FoodItem.self) { food in

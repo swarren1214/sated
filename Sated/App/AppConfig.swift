@@ -8,6 +8,10 @@ enum AppConfig {
     static let cloudSyncEnabled = false
     static let cloudKitContainerID = "iCloud.com.stephenwarren.sated"
 
+    nonisolated static let apiBaseURL = URL(string: "https://lifestyle-api-liart.vercel.app")!
+    nonisolated static let supabaseURL = URL(string: "https://clvyeeboffmgofxrvtsv.supabase.co")!
+    nonisolated static let supabasePublishableKey = "sb_publishable_3Q2nwZBnvkJQR0st35k0ng_mObjJgJD"
+
     /// Open Food Facts asks every app to identify itself as "AppName/Version (ContactEmail)".
     /// Replace the placeholder with a real support address before TestFlight.
     static let contactEmail = "[SUPPORT EMAIL]"

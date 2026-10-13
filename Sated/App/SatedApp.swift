@@ -20,12 +20,33 @@ struct SatedApp: App {
     var body: some Scene {
         WindowGroup {
             AppRoot()
+                .task { await LifestyleAPI.shared.prepareSession() }
                 .environment(router)
                 .environment(coach)
                 .environment(FoodDatabase.shared)
                 .environment(HealthService.shared)
         }
         .modelContainer(container)
+        // With a keyboard on iPad: ⌘N adds food, ⌘1 to ⌘3 switch tabs (also in the menu bar).
+        .commands {
+            CommandGroup(replacing: .newItem) {
+                Button("Add Food") {
+                    AppRouter.shared.show(.now)
+                    AppRouter.shared.addFood()
+                }
+                .keyboardShortcut("n")
+            }
+            CommandMenu("Go") {
+                Button("Today") { AppRouter.shared.tab = .today }
+                    .keyboardShortcut("1")
+                Button("Trends") { AppRouter.shared.tab = .trends }
+                    .keyboardShortcut("2")
+                if OnDeviceModel.isOffered {
+                    Button("Coach") { AppRouter.shared.tab = .coach }
+                        .keyboardShortcut("3")
+                }
+            }
+        }
     }
 }
 

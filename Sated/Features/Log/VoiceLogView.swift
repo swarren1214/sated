@@ -59,6 +59,7 @@ struct VoiceLogView: View {
             }
             .padding(.horizontal, 16)
             .padding(.bottom, 8)
+            .readableWidth(640)
         }
         .voiceScreenBackground()
         .task { await listen() }

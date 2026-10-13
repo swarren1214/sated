@@ -3,6 +3,10 @@ import SwiftUI
 import VisionKit
 
 /// Scan a barcode (looked up in Open Food Facts) or a Nutrition Facts label (read on device).
+///
+/// Label mode finds the panel among everything the camera sees, outlines it, reads its rows with
+/// rules and votes the values across frames (`LabelScanSession`). Once everything is read and
+/// adds up, it stops by itself and shows the values to check.
 struct ScannerView: View {
     let meal: Meal
     var onAdded: () -> Void = {}
@@ -27,6 +31,8 @@ struct ScannerView: View {
     @State private var scan = ScanFeed()
     @State private var detail: FoodItem?
     @State private var lastBarcode: String?
+    @State private var label = LabelScanSession()
+    @State private var review: LabelDraft?
 
     private var canScan: Bool { DataScannerViewController.isSupported && DataScannerViewController.isAvailable }
 
@@ -36,6 +42,10 @@ struct ScannerView: View {
                 DataScanner(mode: mode, feed: scan)
                     .id(mode)
                     .ignoresSafeArea()
+                if mode == .label {
+                    LabelPanelOutline(rect: label.panelRect)
+                        .ignoresSafeArea()
+                }
             } else {
                 ContentUnavailableView(
                     "Camera Unavailable",
@@ -47,14 +57,13 @@ struct ScannerView: View {
             VStack(spacing: 16) {
                 topBar
                 Spacer()
-                if OnDeviceModel.isOffered {
-                    Picker("Scan mode", selection: $mode) {
-                        ForEach(Mode.allCases) { Text($0.rawValue).tag($0) }
-                    }
-                    .pickerStyle(.segmented)
-                    .frame(maxWidth: 280)
-                    .glassEffect(.regular, in: .capsule)
+                // Labels are read with rules on the device, so both modes work everywhere.
+                Picker("Scan mode", selection: $mode) {
+                    ForEach(Mode.allCases) { Text($0.rawValue).tag($0) }
                 }
+                .pickerStyle(.segmented)
+                .frame(maxWidth: 280)
+                .glassEffect(.regular, in: .capsule)
                 resultCard
             }
             .padding(.horizontal, 12)
@@ -65,7 +74,26 @@ struct ScannerView: View {
             lastBarcode = code
             Task { await lookUp(code) }
         }
+        .onChange(of: scan.pieces) { _, pieces in
+            guard mode == .label, phase == .scanning, review == nil else { return }
+            label.update(pieces)
+        }
+        .onChange(of: label.isComplete) { _, complete in
+            guard complete, mode == .label else { return }
+            Task { await finishLabel(source: .camera, reading: label.confirmed.filled(from: label.leading)) }
+        }
         .onChange(of: mode) { restart() }
+        .sheet(item: $review) { draft in
+            NavigationStack {
+                LabelReviewView(draft: draft, meal: meal) {
+                    dismiss()
+                    onAdded()
+                } onRescan: {
+                    restart()
+                }
+            }
+            .interactiveDismissDisabled()
+        }
         .sheet(item: $detail) { food in
             NavigationStack {
                 FoodDetailView(food: food, meal: meal) {
@@ -100,16 +128,7 @@ struct ScannerView: View {
         switch phase {
         case .scanning:
             if mode == .label {
-                Button {
-                    Task { await readLabel() }
-                } label: {
-                    Label("Read Label", systemImage: "text.viewfinder")
-                        .font(.headline)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 6)
-                }
-                .buttonStyle(.glassProminent)
-                .controlSize(.large)
+                labelCard
             } else {
                 hint("Point the camera at a barcode")
             }
@@ -163,11 +182,46 @@ struct ScannerView: View {
         }
     }
 
+    /// The checklist, a hint, and, if it's taking a while, the fallbacks.
+    private var labelCard: some View {
+        VStack(spacing: 14) {
+            Text(label.hint)
+                .font(.subheadline.weight(.medium))
+                .multilineTextAlignment(.center)
+                .contentTransition(.opacity)
+                .animation(.snappy, value: label.hint)
+            LabelChecklist(confirmed: label.confirmed, leading: label.leading)
+            if label.isStuck {
+                HStack(spacing: 10) {
+                    if OnDeviceModel.availability == .available {
+                        Button("Read with AI") {
+                            Task { await readWithModel() }
+                        }
+                        .buttonStyle(.glass)
+                        .frame(maxWidth: .infinity)
+                    }
+                    Button("Enter Manually") {
+                        Task { await finishLabel(source: .manual, reading: label.best) }
+                    }
+                    .buttonStyle(.glass)
+                    .frame(maxWidth: .infinity)
+                }
+                .controlSize(.large)
+                .transition(.move(edge: .bottom).combined(with: .opacity))
+            }
+        }
+        .padding(18)
+        .frame(maxWidth: .infinity)
+        .glassEffect(.regular, in: .rect(cornerRadius: 32))
+        .animation(.snappy, value: label.isStuck)
+    }
+
     private func restart() {
         phase = .scanning
         lastBarcode = nil
         scan.barcode = nil
-        scan.textLines = []
+        scan.pieces = []
+        label.reset()
     }
 
     private func hint(_ text: String) -> some View {
@@ -188,19 +242,30 @@ struct ScannerView: View {
         }
     }
 
-    private func readLabel() async {
-        let lines = scan.textLines
-        guard !lines.isEmpty else {
-            phase = .failed(LabelReader.ReadError.notALabel.localizedDescription)
-            return
-        }
+    /// The fallback: the on-device model reads the panel's text (only the panel's).
+    private func readWithModel() async {
+        let lines = label.panelLines
+        guard !lines.isEmpty else { return }
         phase = .looking
         do {
-            let food = try await LabelReader.read(lines, name: "Scanned food")
-            phase = .found(food)
+            let reading = try await LabelReader.read(lines)
+            // Anything the rules already confirmed wins over the model.
+            await finishLabel(source: .model, reading: label.confirmed.filled(from: reading))
         } catch {
             phase = .failed((error as? LocalizedError)?.errorDescription ?? "Couldn't read the label. Try again with the whole panel in view.")
         }
+    }
+
+    /// Takes a picture of the panel for the review screen, then shows it.
+    private func finishLabel(source: LabelDraft.Source, reading: LabelReading) async {
+        guard review == nil else { return }
+        UINotificationFeedbackGenerator().notificationOccurred(.success)
+        var photo: UIImage?
+        if let captured = await scan.capturePhoto() {
+            photo = label.panelRect.map { LabelPhoto.crop(captured, to: $0, viewSize: scan.viewSize) } ?? captured
+        }
+        phase = .scanning
+        review = LabelDraft(reading: reading, photo: photo, source: source)
     }
 }
 
@@ -208,7 +273,17 @@ struct ScannerView: View {
 @Observable
 final class ScanFeed {
     var barcode: String?
-    var textLines: [String] = []
+    /// Recognized text with its position, in the camera view's coordinates.
+    var pieces: [TextPiece] = []
+    @ObservationIgnored weak var controller: DataScannerViewController?
+
+    var viewSize: CGSize { controller?.view.bounds.size ?? .zero }
+
+    /// A still of what the camera sees now.
+    func capturePhoto() async -> UIImage? {
+        guard let controller else { return nil }
+        return try? await controller.capturePhoto()
+    }
 }
 
 /// VisionKit's live scanner, set up for barcodes or for text.
@@ -225,9 +300,11 @@ private struct DataScanner: UIViewControllerRepresentable {
             qualityLevel: mode == .barcode ? .balanced : .accurate,
             recognizesMultipleItems: mode == .label,
             isHighFrameRateTrackingEnabled: false,
-            isHighlightingEnabled: true
+            // Label mode draws its own outline around the panel instead.
+            isHighlightingEnabled: mode == .barcode
         )
         scanner.delegate = context.coordinator
+        feed.controller = scanner
         return scanner
     }
 
@@ -259,18 +336,21 @@ private struct DataScanner: UIViewControllerRepresentable {
         }
 
         private func update(_ items: [RecognizedItem]) {
-            var lines: [String] = []
+            var pieces: [TextPiece] = []
             for item in items {
                 switch item {
                 case .barcode(let barcode):
                     if let value = barcode.payloadStringValue, feed.barcode != value { feed.barcode = value }
                 case .text(let text):
-                    lines.append(text.transcript)
+                    let corners = [text.bounds.topLeft, text.bounds.topRight, text.bounds.bottomLeft, text.bounds.bottomRight]
+                    let xs = corners.map(\.x), ys = corners.map(\.y)
+                    let rect = CGRect(x: xs.min()!, y: ys.min()!, width: xs.max()! - xs.min()!, height: ys.max()! - ys.min()!)
+                    pieces.append(TextPiece(text: text.transcript, rect: rect))
                 @unknown default:
                     break
                 }
             }
-            if !lines.isEmpty { feed.textLines = lines }
+            if pieces != feed.pieces { feed.pieces = pieces }
         }
     }
 }
