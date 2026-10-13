@@ -84,4 +84,9 @@ nonisolated enum Grams {
         }
         return value.formatted(.number.precision(.fractionLength(1)))
     }
+
+    /// A weight to the nearest gram, at least 1: "240".
+    static func whole(_ value: Double) -> String {
+        max(Int(value.rounded()), 1).formatted()
+    }
 }

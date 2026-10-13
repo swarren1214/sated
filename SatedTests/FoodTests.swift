@@ -73,8 +73,35 @@ struct FoodDatabaseTests {
     @Test func bundledFoodsLoad() {
         // Tests run inside the app, so the main bundle is Sated's.
         let bundled = FoodDatabase(bundle: .main)
-        #expect(bundled.foods.count > 50)
-        #expect(bundled.food(id: "usda.large-egg")?.calories == 72)
+        #expect(bundled.foods.count > 5_000)
+        #expect(!bundled.search("banana").isEmpty)
+        #expect(!bundled.search("pizza pepperoni").isEmpty)
+        #expect(bundled.foods.allSatisfy { $0.calories >= 0 && ($0.grams ?? 1) > 0 })
+    }
+
+    @Test func mainWordOutranksPassingMention() {
+        let database = FoodDatabase(foods: [
+            FoodItem(id: "bread", name: "Bread, banana", serving: "1 slice", grams: 60, nutrients: Nutrients(calories: 196), source: .usda),
+            FoodItem(id: "banana", name: "Banana, raw", serving: "1 medium", grams: 118, nutrients: Nutrients(calories: 105), source: .usda),
+        ])
+        #expect(database.search("banana").first?.id == "banana")
+    }
+
+    @Test func synonymsFindUSDANames() {
+        let database = FoodDatabase(foods: [
+            FoodItem(id: "fries", name: "Potato, french fries, from frozen, baked", serving: "1 cup", grams: 50, nutrients: Nutrients(calories: 150), source: .usda),
+        ])
+        #expect(database.search("fries").first?.id == "fries")
+    }
+
+    @Test func measuresRescaleByWeight() {
+        var rice = FoodItem(id: "r", name: "Rice, white, cooked", serving: "1 cup", grams: 158, nutrients: Nutrients(calories: 205, protein: 4.3, carbs: 44.5, fat: 0.4, fiber: 0.6), source: .usda)
+        rice.portions = [.init(label: "1/2 cup", grams: 79)]
+        #expect(rice.measures.map(\.label) == ["1 cup", "1/2 cup", "1 oz", "100 g"])
+        let half = rice.measured(by: rice.measures[1])
+        #expect(half.serving == "1/2 cup")
+        #expect(abs(half.calories - 102.5) < 0.01)
+        #expect(rice.measured(by: rice.measures[0]) == rice)
     }
 
     @Test func spokenWeightsBecomeServings() {
@@ -83,5 +110,14 @@ struct FoodDatabaseTests {
         #expect(MealParser.servings(for: sixOunces, food: chicken) == 1)
         let twoEggs = ParsedFood(food: "egg", quantity: 2, unit: "egg")
         #expect(MealParser.servings(for: twoEggs, food: database.food(id: "c")!) == 2)
+    }
+
+    @Test func spokenMeasuresUseTheFoodsPortions() {
+        var pizza = FoodItem(id: "p", name: "Pizza, cheese", serving: "1 piece, medium pizza", grams: 100, nutrients: Nutrients(calories: 270), source: .usda)
+        pizza.portions = [.init(label: "1 personal size pizza", grams: 240)]
+        #expect(MealParser.servings(for: ParsedFood(food: "pizza", quantity: 3, unit: "slices"), food: pizza) == 3)
+        var rice = FoodItem(id: "r", name: "Rice, white, cooked", serving: "1/2 cup", grams: 79, nutrients: Nutrients(calories: 102), source: .usda)
+        rice.portions = [.init(label: "1 cup, cooked", grams: 158)]
+        #expect(MealParser.servings(for: ParsedFood(food: "rice", quantity: 2, unit: "cup"), food: rice) == 4)
     }
 }

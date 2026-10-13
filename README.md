@@ -37,16 +37,25 @@ the user's private iCloud database:
 
 ## Food data, with no backend
 
-- **Search** runs against foods bundled in `Sated/Resources/Foods/foods.json`, so it works
-  offline with no API key or rate limit. The file in this build is a 64-food starter list with
-  values rounded from USDA FoodData Central. Replace it with the full USDA list:
+- **Search** runs against about 13,000 foods bundled in `Sated/Resources/Foods/foods.json`
+  (3.2 MB), so it works offline with no API key or rate limit. They come from two USDA
+  FoodData Central datasets: **FNDDS** (foods as people eat them, like "Pizza, cheese, thin
+  crust" or "Burrito, chicken, cheese", ranked first) and **SR Legacy** (ingredients and basic
+  foods, plus USDA's fast-food and restaurant items). Every food has its household measures
+  ("1 slice", "1 cup", "1 medium") as well as ounces and 100 g; the detail screen rescales
+  nutrients by weight. To rebuild it, download the CSV versions of both from
+  https://fdc.nal.usda.gov/download-datasets, unzip them into `data-src/` (ignored by git),
+  then:
 
   ```sh
-  # Download "SR Legacy" or "Foundation Foods" (CSV) from https://fdc.nal.usda.gov/download-datasets
-  python3 scripts/build_foods.py ~/Downloads/FoodData_Central_sr_legacy_food_csv_2018-04 \
-      Sated/Resources/Foods/foods.json
+  python3 scripts/build_foods.py data-src Sated/Resources/Foods/foods.json
   ```
 
+  The script keeps only names, the five nutrients Sated tracks and the portions, picks each
+  food's default serving (the household measure closest to what people typically eat), and
+  sets its search rank. Search itself (`Services/Food/FoodDatabase.swift`) favors the main word
+  of a name ("banana" finds bananas before banana bread), knows a few everyday words USDA
+  spells differently ("fries", "soda", "ketchup"), and keeps baby food out of the way.
   FoodData Central is public domain (CC0); Settings › About credits it.
 - **Barcodes** are looked up in Open Food Facts straight from the phone
   (`Services/Food/OpenFoodFacts.swift`). Reads are limited to 15 a minute per person, which
@@ -108,8 +117,8 @@ suggested plates always go to today.
   fat and fiber rings; a summary of what's left; the four meals; logging streak.
 - **Meals**: entries for one meal, swipe to delete, tap to change servings or move meals.
 - **Add Food**: meal picker, search, Scan, Say It, Quick Add, "Fits what's left today"
-  suggestions and Recent. The plus on a row adds one serving at once; tapping opens the detail.
-- **Food detail**: serving, servings stepper, meal, calories and macros against goals.
+  suggestions and Recent. Tapping a food opens the detail.
+- **Food detail**: serving picker (household measures, ounces, 100 g), servings stepper, meal, calories and macros against goals.
 - **Scan**: barcode lookup with Details and Add, and Nutrition Label mode.
 - **Say It**: listening waveform, transcript, then a confirm card with per-item servings.
 - **Coach**: chat with starter prompts, ask out loud, suggested plates you can log.
@@ -140,8 +149,7 @@ scripts/          build_foods.py (USDA import)
 
 ## Next up
 
-- Run the USDA import and check the result size; move search to SQLite FTS if it passes ~20,000 foods.
-- Check scanned barcodes against USDA branded foods (which carry UPCs) before Open Food Facts.
+- Offline barcodes: USDA's branded foods (~400,000, with UPCs) as an optional download, like the voice.
 - Let people name and save scanned-label foods as favorites.
 - Turn on CloudKit sync; sync goals through iCloud key-value storage.
 - Widgets for the calorie ring and macros, App Intents ("Log my usual breakfast"), and the

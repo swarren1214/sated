@@ -1,7 +1,8 @@
 import SwiftData
 import SwiftUI
 
-/// A food's nutrition, with servings and meal to choose before adding it.
+/// A food's nutrition, with the measure ("1 cup", "1 slice", "100 g"), amount and meal to
+/// choose before adding it.
 struct FoodDetailView: View {
     let food: FoodItem
     var onAdded: () -> Void = {}
@@ -9,6 +10,8 @@ struct FoodDetailView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var servings: Double = 1
     @State private var meal: Meal
+    /// The measure picked; nil is the food's own serving.
+    @State private var measure: FoodItem.Portion?
 
     init(food: FoodItem, meal: Meal, onAdded: @escaping () -> Void = {}) {
         self.food = food
@@ -16,7 +19,9 @@ struct FoodDetailView: View {
         _meal = State(initialValue: meal)
     }
 
-    private var nutrients: Nutrients { food.nutrients * servings }
+    /// The food as it will be logged: measured the way the person chose.
+    private var chosen: FoodItem { measure.map(food.measured(by:)) ?? food }
+    private var nutrients: Nutrients { chosen.nutrients * servings }
     private var goals: Goals { Goals.load() }
 
     var body: some View {
@@ -32,8 +37,17 @@ struct FoodDetailView: View {
                 .padding(.horizontal, 4)
 
                 VStack(spacing: 0) {
-                    LabeledContent("Serving", value: food.servingText)
-                        .padding(.vertical, 14)
+                    if food.measures.count > 1 {
+                        Picker("Serving", selection: $measure) {
+                            ForEach(food.measures) { portion in
+                                Text(portion.text).tag(portion.label == food.serving ? nil : Optional(portion))
+                            }
+                        }
+                        .padding(.vertical, 6)
+                    } else {
+                        LabeledContent("Serving", value: food.servingText)
+                            .padding(.vertical, 14)
+                    }
                     Divider()
                     Stepper(value: $servings, in: 0.25...20, step: 0.25) {
                         LabeledContent("Servings") {
@@ -77,12 +91,13 @@ struct FoodDetailView: View {
             .padding(.horizontal, 16)
             .padding(.bottom, 100)
             .animation(.snappy, value: servings)
+            .animation(.snappy, value: measure)
         }
         .background(Color(.systemGroupedBackground))
         .navigationBarTitleDisplayMode(.inline)
         .safeAreaInset(edge: .bottom) {
             Button {
-                FoodLog.add(food, servings: servings, meal: meal, in: context)
+                FoodLog.add(chosen, servings: servings, meal: meal, in: context)
                 dismiss()
                 onAdded()
             } label: {

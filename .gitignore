@@ -14,3 +14,6 @@ build/
 
 # macOS
 .DS_Store
+
+# USDA downloads for scripts/build_foods.py (large; the built foods.json is committed)
+data-src/

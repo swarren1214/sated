@@ -37,28 +37,28 @@ enum SampleData {
             let date = calendar.date(byAdding: .day, value: -day, to: today) ?? today
             return calendar.date(bySettingHour: hour, minute: minute, second: 0, of: date) ?? date
         }
-        func add(_ id: String, _ meal: Meal, _ date: Date, _ servings: Double = 1) {
-            guard let food = db.food(id: id) else { return }
+        func add(_ name: String, _ meal: Meal, _ date: Date, _ servings: Double = 1) {
+            guard let food = db.foods.first(where: { $0.name == name }) ?? db.search(name, limit: 1).first else { return }
             context.insert(FoodEntry(date: date, meal: meal, name: food.name, servingLabel: food.servingText, servings: servings, perServing: food.nutrients, source: .usda, foodID: food.id))
         }
-        add("usda.greek-yogurt-plain-2", .breakfast, at(0, 7, 12))
-        add("usda.blueberries", .breakfast, at(0, 7, 12))
-        add("usda.granola", .breakfast, at(0, 7, 12))
-        add("usda.chicken-breast-grilled", .lunch, at(0, 12, 18))
-        add("usda.jasmine-rice-cooked", .lunch, at(0, 12, 18))
-        add("usda.avocado", .lunch, at(0, 12, 18), 0.75)
-        add("usda.whey-protein-shake", .snack, at(0, 15, 5))
-        add("usda.apple", .snack, at(0, 15, 5))
+        add("Yogurt, Greek, whole milk, plain", .breakfast, at(0, 7, 12))
+        add("Blueberries, raw", .breakfast, at(0, 7, 12))
+        add("Cereal, granola", .breakfast, at(0, 7, 12), 0.5)
+        add("Chicken breast, grilled without sauce, skin not eaten", .lunch, at(0, 12, 18))
+        add("Rice, white, cooked, no added fat", .lunch, at(0, 12, 18))
+        add("Avocado, raw", .lunch, at(0, 12, 18), 3)
+        add("Nutritional powder mix, whey based", .snack, at(0, 15, 5))
+        add("Apple, raw", .snack, at(0, 15, 5))
         for day in 1...6 {
-            add("usda.large-egg", .breakfast, at(day, 7), 3)
-            add("usda.whole-wheat-bread", .breakfast, at(day, 7), 2)
-            add("usda.chicken-breast-grilled", .lunch, at(day, 12))
-            add("usda.brown-rice-cooked", .lunch, at(day, 12))
-            add("usda.broccoli-steamed", .lunch, at(day, 12))
-            add("usda.greek-yogurt-plain-nonfat", .snack, at(day, 15))
-            add("usda.almonds", .snack, at(day, 15))
-            add(day % 3 == 0 ? "usda.cheese-pizza" : "usda.salmon-fillet-baked", .dinner, at(day, 19), day % 3 == 0 ? 3 : 1)
-            add("usda.sweet-potato-baked", .dinner, at(day, 19))
+            add("Egg, whole, fried with oil", .breakfast, at(day, 7), 3)
+            add("Bread, whole wheat", .breakfast, at(day, 7), 2)
+            add("Chicken breast, grilled without sauce, skin not eaten", .lunch, at(day, 12))
+            add("Rice, brown, cooked, no added fat", .lunch, at(day, 12))
+            add("Broccoli, fresh, cooked, no added fat", .lunch, at(day, 12))
+            add("Yogurt, Greek, nonfat milk, plain", .snack, at(day, 15))
+            add("Almonds, unsalted", .snack, at(day, 15))
+            add(day % 3 == 0 ? "Pizza, cheese, from restaurant or fast food, medium crust" : "Fish, salmon, baked or broiled", .dinner, at(day, 19), day % 3 == 0 ? 3 : 1)
+            add("Sweet potato, baked, no added fat", .dinner, at(day, 19))
         }
         try? context.save()
     }

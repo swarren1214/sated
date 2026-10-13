@@ -89,6 +89,28 @@ enum MealParser {
         if let grams, let servingGrams = food.grams, servingGrams > 0 {
             return (grams / servingGrams * 4).rounded() / 4
         }
+        // "2 cups of rice", "3 slices of pizza": weigh it with the food's matching measure.
+        if let measure = Self.measure(named: item.unit, in: food), let servingGrams = food.grams, servingGrams > 0 {
+            return (quantity * measure.grams / servingGrams * 4).rounded() / 4
+        }
         return quantity
+    }
+
+    /// The food's measure for a spoken unit: "cup" matches "1 cup, cooked", "slice" matches
+    /// "1 piece, medium pizza" too. Only single measures ("1 …") count.
+    static func measure(named unit: String, in food: FoodItem) -> FoodItem.Portion? {
+        let spoken = FoodDatabase.fold(unit).trimmingCharacters(in: .whitespaces)
+        guard !spoken.isEmpty else { return nil }
+        let singular = spoken.count > 3 && spoken.hasSuffix("s") ? String(spoken.dropLast()) : spoken
+        let aliases: [String: [String]] = [
+            "tablespoon": ["tbsp"], "tbsp": ["tbsp"], "teaspoon": ["tsp"], "tsp": ["tsp"],
+            "slice": ["slice", "piece"], "piece": ["piece", "slice"], "cup": ["cup"],
+        ]
+        let wanted = aliases[singular] ?? [singular]
+        return food.measures.first { portion in
+            let words = FoodDatabase.words(portion.label)
+            guard words.first == "1", words.count > 1 else { return false }
+            return wanted.contains(words[1])
+        }
     }
 }
