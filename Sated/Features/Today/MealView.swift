@@ -51,6 +51,8 @@ struct MealView: View {
                             Image(systemName: "trash")
                                 .accessibilityLabel("Delete")
                         }
+                        // The app's accent tint would otherwise override the destructive red.
+                        .tint(.red)
                     }
                 }
             } footer: {

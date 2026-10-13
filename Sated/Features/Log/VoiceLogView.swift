@@ -3,9 +3,12 @@ import SwiftUI
 
 /// Say what you ate. Speech is transcribed on the iPhone, the on-device model splits it into
 /// foods, and the bundled database supplies the numbers. Nothing is logged until confirmed.
+/// Laid out like the Voice · Listening and Voice · Confirm designs.
 struct VoiceLogView: View {
     let meal: Meal
     var onAdded: () -> Void = {}
+    /// Called when the person taps Type Instead: Add Food's search takes over.
+    var onType: () -> Void = {}
 
     enum Phase: Equatable {
         case listening
@@ -18,16 +21,19 @@ struct VoiceLogView: View {
     @Environment(\.modelContext) private var context
     @Environment(FoodDatabase.self) private var database
     @AppStorage(SettingsKey.confirmVoiceEntries) private var confirmEntries = true
+    @AppStorage(SettingsKey.accent) private var accent: AccentOption = .orange
     @State private var dictation = Dictation()
     @State private var phase: Phase = .listening
     @State private var items: [VoiceItem] = []
     @State private var targetMeal: Meal
+    @State private var editing = false
     /// Set when the person closes the screen, so stopping the microphone doesn't log anything.
     @State private var closing = false
 
-    init(meal: Meal, onAdded: @escaping () -> Void = {}) {
+    init(meal: Meal, onAdded: @escaping () -> Void = {}, onType: @escaping () -> Void = {}) {
         self.meal = meal
         self.onAdded = onAdded
+        self.onType = onType
         _targetMeal = State(initialValue: meal)
     }
 
@@ -36,48 +42,36 @@ struct VoiceLogView: View {
 
     var body: some View {
         ZStack {
-            Color(.systemGroupedBackground).ignoresSafeArea()
-            RoundedRectangle(cornerRadius: 56)
-                .strokeBorder(AngularGradient(colors: [.orange, .pink, .orange.opacity(0.6), .orange], center: .center), lineWidth: phase == .listening ? 4 : 0)
-                .blur(radius: 6)
-                .ignoresSafeArea()
-                .opacity(phase == .listening ? 0.9 : 0)
-                .animation(.easeInOut(duration: 0.4), value: phase)
+            ListeningGlow(active: phase == .listening, level: dictation.level)
 
-            VStack(alignment: .leading, spacing: 20) {
-                HStack {
-                    Button("Close", systemImage: "xmark") {
-                        closing = true
-                        dictation.stop()
-                        dismiss()
-                    }
-                    .labelStyle(.iconOnly)
-                    .font(.title3)
-                    .frame(width: 44, height: 44)
-                    .glassEffect(.regular.interactive(), in: .circle)
-                    Spacer()
-                    OnDeviceBadge()
-                    Spacer()
-                    Color.clear.frame(width: 44, height: 44)
-                }
-
-                Spacer(minLength: 20)
-                transcriptView
-                Spacer()
+            VStack(alignment: .leading, spacing: 0) {
+                VoiceTopBar { close() }
+                Spacer(minLength: 24)
+                LiveTranscript(
+                    heading: phase == .listening ? "Listening" : "You said",
+                    text: dictation.transcript,
+                    placeholder: "Say what you ate, like “two eggs and a slice of toast.”",
+                    isListening: phase == .listening,
+                    quoted: true
+                )
+                Spacer(minLength: 24)
                 panel
             }
             .padding(.horizontal, 16)
             .padding(.bottom, 8)
         }
+        .voiceScreenBackground()
         .task { await listen() }
         .onChange(of: dictation.state) { _, state in
             switch state {
             case .denied:
-                phase = .failed("Sated needs microphone and speech recognition access. Turn them on in Settings › Sated.")
+                phase = .failed(VoiceMessages.denied)
             case .unavailable:
-                phase = .failed("Speech recognition isn't available on this iPhone right now. Try again, or search instead.")
+                phase = .failed(VoiceMessages.unavailable)
             case .idle where phase == .listening && !dictation.transcript.isEmpty && !closing:
                 Task { await parse() }
+            case .idle where phase == .listening && dictation.transcript.isEmpty && !closing:
+                phase = .failed("Didn't hear anything. Tap Try Again and say what you ate.")
             default:
                 break
             }
@@ -85,53 +79,37 @@ struct VoiceLogView: View {
     }
 
     @ViewBuilder
-    private var transcriptView: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Text(phase == .listening ? "Listening" : "You said")
-                .font(.subheadline.weight(.semibold))
-                .foregroundStyle(phase == .listening ? AnyShapeStyle(.tint) : AnyShapeStyle(.secondary))
-            Text(dictation.transcript.isEmpty ? "Say what you ate, like “two eggs and a slice of toast.”" : "“\(dictation.transcript)”")
-                .font(.title.weight(.semibold))
-                .foregroundStyle(dictation.transcript.isEmpty ? .secondary : .primary)
-                .fixedSize(horizontal: false, vertical: true)
-                .animation(.snappy, value: dictation.transcript)
-        }
-        .padding(.horizontal, 8)
-    }
-
-    @ViewBuilder
     private var panel: some View {
-        VStack(alignment: .leading, spacing: 16) {
+        VoicePanel {
             switch phase {
             case .listening:
-                Waveform(level: dictation.level)
-                    .frame(height: 64)
-                HStack {
-                    Spacer()
-                    Button {
+                ListeningControls(
+                    level: dictation.level,
+                    hint: "Say what you ate and how much. Sated fills in the rest.",
+                    canStop: !dictation.transcript.isEmpty,
+                    onType: {
+                        closing = true
+                        dictation.stop()
+                        dismiss()
+                        onType()
+                    },
+                    onStop: {
                         dictation.stop()
                         Task { await parse() }
-                    } label: {
-                        RoundedRectangle(cornerRadius: 6).fill(.white).frame(width: 24, height: 24)
-                            .frame(width: 76, height: 76)
-                            .background(.tint, in: .circle)
                     }
-                    .accessibilityLabel("Done speaking")
-                    .disabled(dictation.transcript.isEmpty)
-                    Spacer()
-                }
+                )
             case .parsing:
                 HStack(spacing: 12) {
                     ProgressView()
                     Text("Finding those foods…")
                 }
-                .frame(maxWidth: .infinity, minHeight: 80)
+                .frame(maxWidth: .infinity, minHeight: 120)
             case .review:
                 review
             case .failed(let message):
                 Text(message).font(.subheadline)
                 HStack(spacing: 10) {
-                    Button("Close") { dismiss() }
+                    Button("Close") { close() }
                         .buttonStyle(.glass)
                         .frame(maxWidth: .infinity)
                     Button("Try Again") {
@@ -144,55 +122,85 @@ struct VoiceLogView: View {
                 .controlSize(.large)
             }
         }
-        .padding(20)
-        .glassEffect(.regular, in: .rect(cornerRadius: 34))
     }
 
+    /// The confirm card: meal and item count, the matched foods, totals with Edit, then
+    /// Discard and Log.
     @ViewBuilder
     private var review: some View {
         HStack(alignment: .firstTextBaseline) {
-            Picker("Meal", selection: $targetMeal) {
-                ForEach(Meal.allCases) { Text($0.name).tag($0) }
+            Menu {
+                Picker("Meal", selection: $targetMeal) {
+                    ForEach(Meal.allCases) { Text($0.name).tag($0) }
+                }
+            } label: {
+                HStack(spacing: 4) {
+                    Text(targetMeal.name).font(.title3.bold())
+                    Image(systemName: "chevron.up.chevron.down").font(.caption.weight(.semibold)).foregroundStyle(.secondary)
+                }
+                .foregroundStyle(.primary)
             }
-            .pickerStyle(.menu)
-            .font(.title3.bold())
             Spacer()
-            Text("\(matched.count) item\(matched.count == 1 ? "" : "s")").foregroundStyle(.secondary)
+            Text("\(matched.count) item\(matched.count == 1 ? "" : "s")")
+                .foregroundStyle(.secondary)
         }
+
         VStack(spacing: 0) {
             ForEach($items) { $item in
-                VoiceItemRow(item: $item)
-                if item.id != items.last?.id { Divider() }
+                VoiceItemRow(item: $item, editing: editing)
+                if item.id != items.last?.id { Divider().padding(.leading, 16) }
             }
         }
-        .padding(.horizontal, 14)
-        .background(.fill.tertiary, in: .rect(cornerRadius: 18))
-        Text("\(Int(totals.calories.rounded())) kcal · \(Grams.text(totals.protein)) g protein · \(Grams.text(totals.fat)) g fat")
-            .font(.subheadline)
-            .foregroundStyle(.secondary)
-            .monospacedDigit()
-        HStack(spacing: 10) {
-            Button("Discard") { dismiss() }
-                .buttonStyle(.glass)
-                .frame(maxWidth: .infinity)
-            Button("Log to \(targetMeal.name)") { logAll() }
-                .buttonStyle(.glassProminent)
-                .frame(maxWidth: .infinity)
-                .disabled(matched.isEmpty)
+        .background(.fill.tertiary, in: .rect(cornerRadius: 20))
+
+        HStack {
+            Text("\(Int(totals.calories.rounded())) kcal · \(Grams.text(totals.protein)) g protein · \(Grams.text(totals.fat)) g fat")
+                .foregroundStyle(.secondary)
+                .monospacedDigit()
+            Spacer()
+            Button(editing ? "Done" : "Edit") {
+                withAnimation(.snappy) { editing.toggle() }
+            }
+            .fontWeight(.semibold)
+            .foregroundStyle(accent.color)
         }
-        .controlSize(.large)
+        .font(.subheadline)
+        .padding(.horizontal, 4)
+
+        HStack(spacing: 10) {
+            Button { close() } label: {
+                Text("Discard").frame(maxWidth: .infinity, minHeight: 50)
+            }
+            .buttonStyle(.plain)
+            .font(.headline)
+            .background(.fill.secondary, in: .capsule)
+            .frame(maxWidth: 130)
+
+            Button { logAll() } label: {
+                Text("Log to \(targetMeal.name)").frame(maxWidth: .infinity, minHeight: 50)
+            }
+            .buttonStyle(.plain)
+            .font(.headline)
+            .foregroundStyle(.white)
+            .background(accent.color.gradient, in: .capsule)
+            .disabled(matched.isEmpty)
+            .opacity(matched.isEmpty ? 0.5 : 1)
+        }
+    }
+
+    private func close() {
+        closing = true
+        dictation.stop()
+        dismiss()
     }
 
     /// Starts the microphone, and shows why when it can't (onChange won't fire for a repeat failure).
     private func listen() async {
         await dictation.start()
         switch dictation.state {
-        case .denied:
-            phase = .failed("Sated needs microphone and speech recognition access. Turn them on in Settings › Sated.")
-        case .unavailable:
-            phase = .failed("Speech recognition isn't available on this iPhone right now. Try again, or search instead.")
-        default:
-            break
+        case .denied: phase = .failed(VoiceMessages.denied)
+        case .unavailable: phase = .failed(VoiceMessages.unavailable)
+        default: break
         }
     }
 
@@ -212,7 +220,7 @@ struct VoiceLogView: View {
             if !confirmEntries, items.allSatisfy({ $0.food != nil }) {
                 logAll()
             } else {
-                phase = .review
+                withAnimation(.snappy) { phase = .review }
             }
         } catch {
             phase = .failed("Couldn't work out the foods. Try again, or search instead.")
@@ -229,19 +237,28 @@ struct VoiceLogView: View {
     }
 }
 
+/// The things both voice screens say when the microphone can't start.
+enum VoiceMessages {
+    static let denied = "Sated needs microphone and speech recognition access. Turn them on in Settings › Sated."
+    static let unavailable = "Speech recognition isn't available right now. Check that Siri & Dictation languages are downloaded, then try again."
+}
+
+/// A matched food: "Large egg / 2 eggs · 12.6 g protein / 144". Edit shows a servings stepper.
 private struct VoiceItemRow: View {
     @Binding var item: VoiceItem
+    var editing: Bool
 
     var body: some View {
         HStack(spacing: 12) {
             VStack(alignment: .leading, spacing: 2) {
                 if let food = item.food {
                     Text(food.name)
-                    Text("\(item.servings.formatted(.number.precision(.fractionLength(0...2)))) × \(food.servingText)")
+                    Text("\(amount(food)) · \(Grams.text(item.nutrients.protein)) g protein")
                         .font(.footnote)
                         .foregroundStyle(.secondary)
+                        .monospacedDigit()
                 } else {
-                    Text(item.spoken)
+                    Text(item.spoken.capitalized)
                     Text("No match. Add it with search.")
                         .font(.footnote)
                         .foregroundStyle(.secondary)
@@ -249,32 +266,29 @@ private struct VoiceItemRow: View {
             }
             Spacer()
             if item.food != nil {
-                Stepper("Servings", value: $item.servings, in: 0.25...20, step: 0.25)
-                    .labelsHidden()
+                if editing {
+                    Stepper("Servings", value: $item.servings, in: 0.25...20, step: 0.25)
+                        .labelsHidden()
+                }
                 Text("\(Int(item.nutrients.calories.rounded()))")
+                    .font(.body.weight(.medium))
                     .monospacedDigit()
                     .frame(minWidth: 36, alignment: .trailing)
             }
         }
-        .padding(.vertical, 10)
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
     }
-}
 
-/// Bars that rise and fall with the microphone level.
-private struct Waveform: View {
-    var level: Double
-    private let shape: [Double] = [0.2, 0.35, 0.55, 0.4, 0.7, 0.9, 0.6, 0.45, 0.8, 1, 0.75, 0.5, 0.35, 0.55, 0.85, 1, 0.8, 0.6, 0.45, 0.65, 0.9, 0.7, 0.5, 0.35, 0.25, 0.45, 0.6, 0.5, 0.3, 0.2]
-
-    var body: some View {
-        HStack(spacing: 4) {
-            ForEach(shape.indices, id: \.self) { index in
-                Capsule()
-                    .fill(.tint)
-                    .frame(width: 4, height: max(6, 64 * shape[index] * max(level, 0.12)))
-            }
+    private func amount(_ food: FoodItem) -> String {
+        let count = item.servings.formatted(.number.precision(.fractionLength(0...2)))
+        // "1 egg" × 2 reads as "2 eggs"; other servings read as "2 × 1 cup".
+        let serving = food.serving
+        let unitWord = serving.dropFirst(2)
+        if serving.hasPrefix("1 "), !serving.contains("("), !["medium", "large", "small", "serving"].contains(String(unitWord)) {
+            let unit = String(serving.dropFirst(2))
+            return item.servings == 1 ? "1 \(unit)" : "\(count) \(unit.hasSuffix("s") ? unit : unit + "s")"
         }
-        .frame(maxWidth: .infinity)
-        .animation(.easeOut(duration: 0.12), value: level)
-        .accessibilityHidden(true)
+        return item.servings == 1 ? serving : "\(count) × \(serving)"
     }
 }

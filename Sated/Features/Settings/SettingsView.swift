@@ -17,6 +17,10 @@ struct SettingsView: View {
     @AppStorage(SettingsKey.saveToHealth) private var saveToHealth = true
     @AppStorage(SettingsKey.readActiveEnergy) private var readActiveEnergy = true
     @AppStorage(SettingsKey.confirmVoiceEntries) private var confirmVoiceEntries = true
+    @AppStorage(SettingsKey.spokenReplies) private var spokenReplies = true
+    @AppStorage(SettingsKey.coachVoice) private var coachVoice = KokoroVoices.defaultID
+    @State private var model = KokoroModel.shared
+    @State private var speaker = CoachSpeaker.shared
     @AppStorage(SettingsKey.accent) private var accent: AccentOption = .orange
     @AppStorage(SettingsKey.appearance) private var appearance: AppearanceOption = .system
 
@@ -52,10 +56,28 @@ struct SettingsView: View {
                     Text(coach.availability.message).font(.footnote).foregroundStyle(.secondary)
                 }
                 Toggle("Confirm Voice Entries", isOn: $confirmVoiceEntries)
+                Toggle("Spoken Replies", isOn: $spokenReplies)
+                if spokenReplies {
+                    NaturalVoiceRow(model: model)
+                    if model.isReady {
+                        Picker("Voice", selection: $coachVoice) {
+                            ForEach(KokoroVoices.choices) { voice in
+                                Text("\(voice.name) · \(voice.detail)").tag(voice.id)
+                            }
+                        }
+                        Button("Play Sample", systemImage: speaker.isActive ? "stop.fill" : "play.fill") {
+                            if speaker.isActive {
+                                speaker.stop()
+                            } else {
+                                speaker.speak("Hi, I'm Coach. You have 1,122 calories left today, and dinner is still open.")
+                            }
+                        }
+                    }
+                }
             } header: {
                 Text("Coach")
             } footer: {
-                Text("Conversations and voice never leave this iPhone. With Confirm Voice Entries off, foods you say are logged as soon as every one is matched.")
+                Text("Coach, your voice and its spoken replies all run on this iPhone and never leave it. The natural voice is a one-time \(KokoroModel.approximateSize) download; until then, Coach speaks with the best Apple voice on your phone. With Confirm Voice Entries off, foods you say are logged as soon as every one is matched.")
             }
 
             Section("Appearance") {
@@ -78,6 +100,9 @@ struct SettingsView: View {
             }
 
             Section("About") {
+                Text("Coach's natural voice is Kokoro (Apache 2.0), run with KokoroSwift (MIT) and MisakiSwift (Apache 2.0).")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
                 Text(AppConfig.foodDataCredit)
                     .font(.footnote)
                     .foregroundStyle(.secondary)
@@ -98,6 +123,49 @@ struct SettingsView: View {
     private var macroCheck: String {
         let implied = goalProtein * 4 + goalCarbs * 4 + goalFat * 9
         return "Your protein, carbs and fat goals add up to \(Int(implied.rounded()).formatted()) kcal."
+    }
+}
+
+/// The natural voice: download it, watch it download, or remove it.
+private struct NaturalVoiceRow: View {
+    var model: KokoroModel
+
+    var body: some View {
+        switch model.state {
+        case .unavailable:
+            LabeledContent("Natural Voice", value: "Needs a real iPhone")
+        case .notDownloaded:
+            Button {
+                model.download()
+            } label: {
+                LabeledContent("Natural Voice") {
+                    Text("Download \(KokoroModel.approximateSize)").foregroundStyle(.tint)
+                }
+            }
+            .foregroundStyle(.primary)
+        case .downloading(let fraction):
+            VStack(alignment: .leading, spacing: 8) {
+                LabeledContent("Natural Voice") {
+                    Button("Cancel") { model.cancelDownload() }
+                }
+                ProgressView(value: fraction)
+            }
+        case .ready:
+            LabeledContent("Natural Voice", value: "On this iPhone")
+                .swipeActions {
+                    Button(role: .destructive) { model.remove() } label: {
+                        Image(systemName: "trash").accessibilityLabel("Remove")
+                    }
+                    .tint(.red)
+                }
+        case .failed(let message):
+            VStack(alignment: .leading, spacing: 6) {
+                LabeledContent("Natural Voice") {
+                    Button("Try Again") { model.download() }
+                }
+                Text(message).font(.footnote).foregroundStyle(.secondary)
+            }
+        }
     }
 }
 

@@ -1,35 +1,86 @@
 import SwiftData
 import SwiftUI
 
-/// Today: calories left, the four macros, a summary, and the day's meals.
+/// Today: calories left, the four macros, a summary, and the day's meals. The calendar button
+/// and a sideways swipe move to other days, so earlier meals can be logged or fixed.
 struct TodayView: View {
     @Environment(\.scenePhase) private var scenePhase
-    @State private var day = Calendar.current.startOfDay(for: .now)
+    @Environment(AppRouter.self) private var router
     @State private var showsSettings = false
+    @State private var showsCalendar = false
 
     var body: some View {
-        DayLog(day: day)
-            .id(day)
-            .navigationTitle("Today")
-            .navigationSubtitle(day.formatted(.dateTime.weekday(.wide).month(.wide).day()))
+        DayLog(day: router.day)
+            .id(router.day)
+            .transition(.opacity)
+            .simultaneousGesture(
+                DragGesture(minimumDistance: 30)
+                    .onEnded { value in
+                        guard abs(value.translation.width) > abs(value.translation.height) * 1.5,
+                              abs(value.translation.width) > 80 else { return }
+                        withAnimation(.snappy) { router.move(byDays: value.translation.width > 0 ? -1 : 1) }
+                    }
+            )
+            .navigationTitle(router.dayTitle)
+            .navigationSubtitle(router.day.formatted(.dateTime.weekday(.wide).month(.wide).day().year()))
             .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
+                ToolbarItem(placement: .topBarLeading) {
                     StreakBadge()
                 }
                 // The badge draws its own glass capsule, sized to its contents.
                 .sharedBackgroundVisibility(.hidden)
-                ToolbarSpacer(.fixed, placement: .topBarTrailing)
-                ToolbarItem(placement: .topBarTrailing) {
+                ToolbarItemGroup(placement: .topBarTrailing) {
+                    Button("Choose Day", systemImage: "calendar") { showsCalendar = true }
                     Button("Settings", systemImage: "person.crop.circle") { showsSettings = true }
                 }
             }
             .sheet(isPresented: $showsSettings) {
                 NavigationStack { SettingsView() }
             }
-            .onChange(of: scenePhase) { _, phase in
-                // A new day starts when the app comes back after midnight.
-                if phase == .active { day = Calendar.current.startOfDay(for: .now) }
+            .sheet(isPresented: $showsCalendar) {
+                DayPicker()
+                    .presentationDetents([.medium, .large])
             }
+    }
+}
+
+/// The calendar sheet: pick any day up to today, or jump back to today.
+private struct DayPicker: View {
+    @Environment(AppRouter.self) private var router
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        NavigationStack {
+            VStack {
+            DatePicker(
+                "Day",
+                selection: Binding(get: { router.day }, set: { date in
+                    router.show(date)
+                    dismiss()
+                }),
+                in: ...Date.now,
+                displayedComponents: .date
+            )
+            .datePickerStyle(.graphical)
+            .labelsHidden()
+            .padding(.horizontal, 16)
+            Spacer(minLength: 0)
+            }
+            .navigationTitle("Choose a Day")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Close", systemImage: "xmark") { dismiss() }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Today") {
+                        router.show(.now)
+                        dismiss()
+                    }
+                    .disabled(router.isToday)
+                }
+            }
+        }
     }
 }
 
@@ -65,7 +116,7 @@ private struct DayLog: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 22) {
-                CalorieCard(totals: totals, goals: goals, active: health.activeEnergyToday)
+                CalorieCard(totals: totals, goals: goals, active: Calendar.current.isDateInToday(day) ? health.activeEnergyToday : nil)
 
                 VStack(alignment: .leading, spacing: 8) {
                     SectionHeader("Macros")
@@ -76,7 +127,8 @@ private struct DayLog: View {
                     }
                 }
 
-                if !entries.isEmpty {
+                // The summary talks about what's left, so it's for today only.
+                if !entries.isEmpty, Calendar.current.isDateInToday(day) {
                     SummaryCard(text: Summaries.dayText(totals: totals, goals: goals, openMeals: openMeals.filter { $0 != .snack }))
                 }
 

@@ -4,7 +4,7 @@ import UIKit
 
 @main
 struct SatedApp: App {
-    @State private var router = AppRouter()
+    @State private var router = AppRouter.shared
     @State private var coach: CoachEngine
     private let container: ModelContainer
 
@@ -28,10 +28,33 @@ struct SatedApp: App {
     }
 }
 
-/// Which tab is showing, and where Add Food should file the next entry.
+/// Which tab is showing, the day being logged, and where Add Food should file the next entry.
 @Observable
 final class AppRouter {
+    static let shared = AppRouter()
+
     var tab: AppTab = .today
+    /// The day Today shows and new entries go to. Never later than today.
+    var day: Date = Calendar.current.startOfDay(for: .now)
+    /// The calendar's today, as last seen, to notice midnight.
+    @ObservationIgnored private var lastToday = Calendar.current.startOfDay(for: .now)
+    @ObservationIgnored private var dayChangeObserver: NSObjectProtocol?
+
+    init() {
+        // Midnight while the app is open: someone on today moves to the new today, so
+        // nothing gets filed under yesterday by mistake.
+        dayChangeObserver = NotificationCenter.default.addObserver(forName: .NSCalendarDayChanged, object: nil, queue: .main) { [weak self] _ in
+            MainActor.assumeIsolated { self?.rollOverIfNeeded() }
+        }
+    }
+
+    /// Also called when the app comes back to the foreground.
+    func rollOverIfNeeded() {
+        let today = Calendar.current.startOfDay(for: .now)
+        guard today != lastToday else { return }
+        if day == lastToday { day = today }
+        lastToday = today
+    }
     /// Set when "+" on a meal opens Add Food, so the meal is preselected.
     var mealForNextEntry: Meal?
 
@@ -43,6 +66,34 @@ final class AppRouter {
     /// After something is logged: leave Add Food and show Today.
     func finishAdding() {
         tab = .today
+    }
+
+    var isToday: Bool { Calendar.current.isDateInToday(day) }
+
+    /// When a new entry happens: now, or the current time of day on an earlier day.
+    var entryDate: Date {
+        let calendar = Calendar.current
+        guard !isToday else { return .now }
+        let time = calendar.dateComponents([.hour, .minute, .second], from: .now)
+        return calendar.date(bySettingHour: time.hour ?? 12, minute: time.minute ?? 0, second: time.second ?? 0, of: day) ?? day
+    }
+
+    func show(_ date: Date) {
+        let calendar = Calendar.current
+        day = min(calendar.startOfDay(for: date), calendar.startOfDay(for: .now))
+    }
+
+    func move(byDays offset: Int) {
+        guard let date = Calendar.current.date(byAdding: .day, value: offset, to: day) else { return }
+        show(date)
+    }
+
+    /// "Today", "Yesterday", or "Saturday, Oct 10".
+    var dayTitle: String {
+        let calendar = Calendar.current
+        if calendar.isDateInToday(day) { return "Today" }
+        if calendar.isDateInYesterday(day) { return "Yesterday" }
+        return day.formatted(.dateTime.weekday(.abbreviated).month(.abbreviated).day())
     }
 }
 
@@ -65,6 +116,7 @@ struct AppRoot: View {
             }
             .onChange(of: scenePhase) { _, phase in
                 guard phase == .active else { return }
+                AppRouter.shared.rollOverIfNeeded()
                 applyAppearance(appearance)
                 Task { await health.refreshActiveEnergy() }
             }

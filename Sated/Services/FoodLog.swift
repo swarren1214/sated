@@ -6,7 +6,7 @@ import UIKit
 /// of inserting into the model context themselves.
 enum FoodLog {
     @discardableResult
-    static func add(_ food: FoodItem, servings: Double, meal: Meal, date: Date = .now, in context: ModelContext) -> FoodEntry {
+    static func add(_ food: FoodItem, servings: Double, meal: Meal, date: Date = AppRouter.shared.entryDate, in context: ModelContext) -> FoodEntry {
         let entry = FoodEntry(
             date: date,
             meal: meal,

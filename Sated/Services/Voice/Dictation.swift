@@ -1,11 +1,13 @@
 import AVFoundation
 import Foundation
+import Observation
 import OSLog
 import Speech
 
 /// Live speech-to-text on the iPhone, for voice logging and talking to Coach.
 ///
-/// Recognition is required to run on device, so audio never leaves the phone. Uses
+/// Recognition is required to run on device, so audio never leaves the phone. (The Simulator
+/// has no on-device speech model, so debug runs there fall back to Apple's server.) Uses
 /// SFSpeechRecognizer; SpeechAnalyzer (iOS 26) is the planned replacement once the voice
 /// screens settle, and only this type needs to change.
 @Observable
@@ -22,45 +24,54 @@ final class Dictation {
     /// Recent input loudness, 0...1, for the waveform.
     private(set) var level: Double = 0
 
-    private let recognizer = SFSpeechRecognizer(locale: Locale.current) ?? SFSpeechRecognizer(locale: Locale(identifier: "en-US"))
-    private let engine = AVAudioEngine()
-    private var request: SFSpeechAudioBufferRecognitionRequest?
-    private var task: SFSpeechRecognitionTask?
-    private let log = Logger(subsystem: "com.stephenwarren.sated", category: "dictation")
+    @ObservationIgnored private let recognizer = SFSpeechRecognizer(locale: Locale.current) ?? SFSpeechRecognizer(locale: Locale(identifier: "en-US"))
+    @ObservationIgnored private let engine = AVAudioEngine()
+    @ObservationIgnored private var request: SFSpeechAudioBufferRecognitionRequest?
+    @ObservationIgnored private var task: SFSpeechRecognitionTask?
+    /// Bumped on every start and finish, so callbacks from an earlier listen are ignored.
+    @ObservationIgnored private var session = 0
+    @ObservationIgnored private let log = Logger(subsystem: "com.stephenwarren.sated", category: "dictation")
 
     var isListening: Bool { state == .listening }
 
     func start() async {
         guard state != .listening else { return }
+        // Coach may still be talking: it has to stop before the microphone opens.
+        CoachSpeaker.shared.stop()
+        session += 1
+        let current = session
         transcript = ""
         guard await Self.requestPermissions() else {
             state = .denied
             return
         }
-        guard let recognizer, recognizer.isAvailable, recognizer.supportsOnDeviceRecognition else {
+        guard let recognizer, recognizer.isAvailable, Self.canRecognize(with: recognizer) else {
+            log.error("Speech recognition unavailable")
             state = .unavailable
             return
         }
         do {
-            let session = AVAudioSession.sharedInstance()
-            try session.setCategory(.record, mode: .measurement, options: .duckOthers)
-            try session.setActive(true, options: .notifyOthersOnDeactivation)
+            try await AudioSessionControl.activateForRecording()
+            guard current == session else { return }
 
             let request = SFSpeechAudioBufferRecognitionRequest()
             request.shouldReportPartialResults = true
-            request.requiresOnDeviceRecognition = true
+            request.requiresOnDeviceRecognition = recognizer.supportsOnDeviceRecognition
             request.addsPunctuation = true
             self.request = request
 
             Self.installTap(on: engine.inputNode, request: request) { [weak self] level in
-                Task { @MainActor in self?.level = level }
+                Task { @MainActor in
+                    guard let self, current == self.session else { return }
+                    self.level = level
+                }
             }
             engine.prepare()
             try engine.start()
 
             task = Self.recognize(with: recognizer, request: request) { [weak self] text, isFinal, failed in
                 Task { @MainActor in
-                    guard let self else { return }
+                    guard let self, current == self.session else { return }
                     if let text { self.transcript = text }
                     if isFinal || failed { self.finish() }
                 }
@@ -80,6 +91,8 @@ final class Dictation {
     }
 
     private func finish() {
+        // Anything still arriving from this listen is now stale.
+        session += 1
         if engine.isRunning { engine.stop() }
         // Safe when no tap is installed; also clears one left by a start that failed.
         engine.inputNode.removeTap(onBus: 0)
@@ -88,7 +101,16 @@ final class Dictation {
         request = nil
         level = 0
         if state == .listening { state = .idle }
-        try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
+        AudioSessionControl.deactivate()
+    }
+
+    /// On a real iPhone, only on-device recognition is allowed. The Simulator has none.
+    private static func canRecognize(with recognizer: SFSpeechRecognizer) -> Bool {
+        #if targetEnvironment(simulator)
+        return true
+        #else
+        return recognizer.supportsOnDeviceRecognition
+        #endif
     }
 
     // The audio tap and recognition callbacks run on background queues, so they're built in

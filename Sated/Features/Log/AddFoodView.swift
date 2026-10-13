@@ -10,7 +10,8 @@ struct AddFoodView: View {
     @AppStorage(SettingsKey.goalCalories) private var goalCalories = Goals.defaults.calories
     @AppStorage(SettingsKey.goalProtein) private var goalProtein = Goals.defaults.protein
     @AppStorage(SettingsKey.goalFiber) private var goalFiber = Goals.defaults.fiber
-    @Query private var today: [FoodEntry]
+    /// Recent entries; the selected day's are picked out for "Fits what's left".
+    @Query private var recentEntries: [FoodEntry]
 
     @State private var query = ""
     @State private var meal: Meal = .suggested()
@@ -20,12 +21,14 @@ struct AddFoodView: View {
     @State private var showsQuickAdd = false
 
     init() {
-        let start = Calendar.current.startOfDay(for: .now)
-        _today = Query(filter: #Predicate<FoodEntry> { $0.date >= start })
+        let start = Calendar.current.date(byAdding: .day, value: -120, to: .now) ?? .now
+        _recentEntries = Query(filter: #Predicate<FoodEntry> { $0.date >= start })
     }
 
     private var remaining: Nutrients {
-        let eaten = today.reduce(Nutrients.zero) { $0 + $1.nutrients }
+        let eaten = recentEntries
+            .filter { Calendar.current.isDate($0.date, inSameDayAs: router.day) }
+            .reduce(Nutrients.zero) { $0 + $1.nutrients }
         var goals = Goals.load()
         goals.calories = goalCalories
         goals.protein = goalProtein
@@ -60,7 +63,7 @@ struct AddFoodView: View {
                 if query.isEmpty {
                     let suggested = database.suggestions(remaining: remaining, goals: Goals.load())
                     if !suggested.isEmpty {
-                        Section("Fits What's Left Today") {
+                        Section(router.isToday ? "Fits What's Left Today" : "Fits What Was Left") {
                             ForEach(suggested) { FoodRow(food: $0, meal: meal) }
                         }
                     }
@@ -91,6 +94,7 @@ struct AddFoodView: View {
                 }
             }
             .navigationTitle("Add Food")
+            .navigationSubtitle(router.isToday ? "" : "Adding to \(router.day.formatted(.dateTime.weekday(.wide).month().day()))")
             .navigationDestination(for: FoodItem.self) { food in
                 FoodDetailView(food: food, meal: meal) { router.finishAdding() }
             }
@@ -162,16 +166,14 @@ private struct QuickActions: View {
     }
 }
 
-/// A food in a list: tap anywhere for details, or the plus to add one serving straight away.
-/// The link sits invisibly behind the row, so the list draws no chevron next to the plus.
+/// A food in a list. Tapping opens its details, where the person picks servings and meal
+/// before adding it.
 struct FoodRow: View {
     var food: FoodItem
     var meal: Meal
-    @Environment(\.modelContext) private var context
-    @State private var added = false
 
     var body: some View {
-        HStack(spacing: 12) {
+        NavigationLink(value: food) {
             VStack(alignment: .leading, spacing: 2) {
                 Text(food.name)
                 Text(food.listDetail)
@@ -179,24 +181,7 @@ struct FoodRow: View {
                     .foregroundStyle(.secondary)
                     .monospacedDigit()
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
-
-            Button {
-                FoodLog.add(food, servings: 1, meal: meal, in: context)
-                withAnimation(.snappy) { added = true }
-            } label: {
-                Image(systemName: added ? "checkmark.circle.fill" : "plus.circle.fill")
-                    .font(.system(size: 30))
-                    .contentTransition(.symbolEffect(.replace))
-                    .frame(width: 44, height: 44)
-                    .contentShape(.circle)
-            }
-            .buttonStyle(.borderless)
-            .accessibilityLabel(added ? "Added to \(meal.name)" : "Add one serving to \(meal.name)")
-        }
-        .background {
-            NavigationLink(value: food) { EmptyView() }
-                .opacity(0)
+            .padding(.vertical, 2)
         }
     }
 }

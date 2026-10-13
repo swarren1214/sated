@@ -6,9 +6,8 @@ struct CoachView: View {
     @Environment(CoachEngine.self) private var coach
     @Environment(\.modelContext) private var context
     @State private var draft = ""
-    @State private var dictation = Dictation()
+    @State private var showsVoice = false
     @FocusState private var composerFocused: Bool
-    @State private var micProblem: String?
     @AppStorage(SettingsKey.accent) private var accent: AccentOption = .orange
 
     /// One line of the message field.
@@ -65,19 +64,16 @@ struct CoachView: View {
             }
         }
         .safeAreaInset(edge: .bottom) { composer }
-        .alert("Can't Listen", isPresented: Binding(get: { micProblem != nil }, set: { if !$0 { micProblem = nil } })) {
-            Button("OK", role: .cancel) {}
-        } message: {
-            Text(micProblem ?? "")
+        // Asking out loud opens the full listening screen from the design.
+        .fullScreenCover(isPresented: $showsVoice) {
+            CoachVoiceView {
+                Task {
+                    try? await Task.sleep(for: .milliseconds(450))
+                    composerFocused = true
+                }
+            }
         }
         .onAppear { coach.prewarm() }
-        .onChange(of: dictation.transcript) { _, text in
-            if dictation.isListening { draft = text }
-        }
-        .onChange(of: dictation.state) { _, state in
-            // Asking out loud sends when you stop talking.
-            if state == .idle, !draft.isEmpty { send() }
-        }
     }
 
     private var intro: some View {
@@ -127,22 +123,12 @@ struct CoachView: View {
                     .frame(minHeight: Self.composerHeight)
                     .glassEffect(.regular.interactive(), in: .rect(cornerRadius: Self.composerHeight / 2))
 
-                if draft.isEmpty || dictation.isListening {
+                if draft.isEmpty {
                     Button {
-                        if dictation.isListening {
-                            dictation.stop()
-                        } else {
-                            Task {
-                                await dictation.start()
-                                switch dictation.state {
-                                case .denied: micProblem = "Sated needs microphone and speech recognition access to hear questions. Turn them on in Settings › Sated."
-                                case .unavailable: micProblem = "Speech recognition isn't available right now. Type your question instead."
-                                default: break
-                                }
-                            }
-                        }
+                        composerFocused = false
+                        showsVoice = true
                     } label: {
-                        Image(systemName: dictation.isListening ? "stop.fill" : "mic.fill")
+                        Image(systemName: "mic.fill")
                             .font(.system(size: 16, weight: .semibold))
                             .frame(width: Self.buttonSize, height: Self.buttonSize)
                             .contentShape(.circle)
@@ -151,7 +137,7 @@ struct CoachView: View {
                     .foregroundStyle(.white)
                     .background(accent.color, in: .circle)
                     .padding(.bottom, (Self.composerHeight - Self.buttonSize) / 2)
-                    .accessibilityLabel(dictation.isListening ? "Stop" : "Ask out loud")
+                    .accessibilityLabel("Ask out loud")
                 } else {
                     Button(action: send) {
                         Image(systemName: "arrow.up")
@@ -182,7 +168,7 @@ struct CoachView: View {
     private func log(_ message: CoachMessage) {
         let meal = Meal.suggested()
         for food in message.foods {
-            FoodLog.add(food, servings: 1, meal: meal, in: context)
+            FoodLog.add(food, servings: 1, meal: meal, date: .now, in: context)
         }
         coach.markLogged(message)
     }

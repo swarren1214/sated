@@ -6,6 +6,11 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		5A7E00000000000000000105 /* KokoroSwift in Frameworks */ = {isa = PBXBuildFile; productRef = 5A7E00000000000000000103 /* KokoroSwift */; };
+		5A7E00000000000000000106 /* MLX in Frameworks */ = {isa = PBXBuildFile; productRef = 5A7E00000000000000000104 /* MLX */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXContainerItemProxy section */
 		5A7E00000000000000000010 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -42,6 +47,8 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				5A7E00000000000000000105 /* KokoroSwift in Frameworks */,
+				5A7E00000000000000000106 /* MLX in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -96,6 +103,8 @@
 			);
 			name = Sated;
 			packageProductDependencies = (
+				5A7E00000000000000000103 /* KokoroSwift */,
+				5A7E00000000000000000104 /* MLX */,
 			);
 			productName = Sated;
 			productReference = 5A7E00000000000000000006 /* Sated.app */;
@@ -152,6 +161,10 @@
 			);
 			mainGroup = 5A7E00000000000000000002;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				5A7E00000000000000000101 /* XCLocalSwiftPackageReference "Packages/KokoroSwift" */,
+				5A7E00000000000000000102 /* XCRemoteSwiftPackageReference "mlx-swift" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 5A7E00000000000000000003 /* Products */;
 			projectDirPath = "";
@@ -296,6 +309,7 @@
 				MARKETING_VERSION = 0.1;
 				PRODUCT_BUNDLE_IDENTIFIER = com.stephenwarren.sated;
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				REGISTER_APP_GROUPS = YES;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
 				SWIFT_EMIT_LOC_STRINGS = YES;
@@ -335,6 +349,7 @@
 				MARKETING_VERSION = 0.1;
 				PRODUCT_BUNDLE_IDENTIFIER = com.stephenwarren.sated;
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				REGISTER_APP_GROUPS = YES;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
 				SWIFT_EMIT_LOC_STRINGS = YES;
@@ -414,6 +429,37 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCLocalSwiftPackageReference section */
+		5A7E00000000000000000101 /* XCLocalSwiftPackageReference "Packages/KokoroSwift" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = Packages/KokoroSwift;
+		};
+/* End XCLocalSwiftPackageReference section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		5A7E00000000000000000102 /* XCRemoteSwiftPackageReference "mlx-swift" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/ml-explore/mlx-swift";
+			requirement = {
+				kind = upToNextMinorVersion;
+				minimumVersion = 0.29.1;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		5A7E00000000000000000103 /* KokoroSwift */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 5A7E00000000000000000101 /* XCLocalSwiftPackageReference "Packages/KokoroSwift" */;
+			productName = KokoroSwift;
+		};
+		5A7E00000000000000000104 /* MLX */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 5A7E00000000000000000102 /* XCRemoteSwiftPackageReference "mlx-swift" */;
+			productName = MLX;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 5A7E00000000000000000001 /* Project object */;
 }

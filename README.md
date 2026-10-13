@@ -72,6 +72,32 @@ All of it uses the Foundation Models framework, so nothing leaves the phone.
 Coach, Say It and label scanning need Apple Intelligence (iPhone 15 Pro or newer). On other
 iPhones the Coach tab and those buttons are hidden and everything else works.
 
+## Coach's voice (Kokoro, on device)
+
+Talking to Coach runs entirely on the iPhone: speech-to-text, the on-device model, and the
+spoken reply.
+
+- Spoken replies use **Kokoro**, the same neural voice as Hearken. `Packages/KokoroSwift` and
+  `Packages/MisakiSwift` are Hearken's vendored copies (MIT and Apache 2.0), built as static
+  libraries; MLX comes from `mlx-swift` 0.29.1. The voice styles ship in the app
+  (`Sated/Resources/Kokoro/kokoro-voices.bin`, ~14 MB).
+- The model itself (~330 MB) downloads once, when the person taps Download in Settings › Coach or
+  on the voice screen. It's checked by SHA-256 and kept out of iCloud backups
+  (`Services/Voice/KokoroVoice.swift`). After that, nothing leaves the phone.
+- The model is shared with Hearken (and any later app) through the App Group
+  `group.com.stephenwarren.voice`, so it's downloaded once per iPhone. Whichever app gets it
+  first puts it in the group's folder; the others find it there. Removing it in one app removes
+  it for all of them. Each app still loads it into its own memory when it speaks.
+- Until it's downloaded, and in the Simulator (MLX needs a real GPU), Coach speaks with the best
+  Apple voice installed (`Services/Voice/CoachSpeaker.swift`).
+- The first build fetches mlx-swift, which takes a few minutes.
+
+## Logging other days
+
+Today has a calendar button next to Settings (a sideways swipe moves a day at a time). Everything
+logged while another day is showing goes to that day, at the current time of day. Coach's
+suggested plates always go to today.
+
 ## What's built (milestone 1)
 
 - **Tab bar**: the system Liquid Glass `TabView` with Today, Trends and Coach, and Add Food as
@@ -105,7 +131,9 @@ Sated/
   Features/       Today, Log (Add Food, detail, scan, voice, quick add), Coach, Trends, Settings
   Models/         SwiftData FoodEntry, nutrients and goals, summary math
   Resources/      Bundled foods
-  Services/       Food (database, Open Food Facts), Health, Coach (model, tools, parsers), Voice
+  Services/       Food (database, Open Food Facts), Health, Coach (model, tools, parsers),
+                  Voice (dictation, Kokoro, spoken replies)
+Packages/         KokoroSwift and MisakiSwift (vendored from Hearken)
 SatedTests/       Swift Testing
 scripts/          build_foods.py (USDA import)
 ```
