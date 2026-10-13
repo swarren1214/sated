@@ -177,7 +177,8 @@ final class CoachSpeaker: NSObject {
             pendingBuffers += 1
             state = .speaking
             output.scheduleBuffer(buffer, completionCallbackType: .dataPlayedBack) { [weak self] _ in
-                Task { @MainActor in self?.bufferFinished(generation: current) }
+                let speaker = self
+                Task { @MainActor in speaker?.bufferFinished(generation: current) }
             }
         }
         guard current == generation else { return }
@@ -259,8 +260,9 @@ final class CoachSpeaker: NSObject {
         synthesizer.write(utterance) { [weak self] buffer in
             guard let pcm = buffer as? AVAudioPCMBuffer else { return }
             let isLast = pcm.frameLength == 0
+            let speaker = self
             Task { @MainActor in
-                guard let self, current == self.generation else { return }
+                guard let self = speaker, current == self.generation else { return }
                 if isLast {
                     self.producing = false
                     if self.pendingBuffers == 0 { self.finished() }
@@ -269,7 +271,8 @@ final class CoachSpeaker: NSObject {
                 guard let converted = self.convert(pcm, to: target) else { return }
                 self.pendingBuffers += 1
                 conversation.player.scheduleBuffer(converted, completionCallbackType: .dataPlayedBack) { [weak self] _ in
-                    Task { @MainActor in self?.bufferFinished(generation: current) }
+                    let speaker = self
+                    Task { @MainActor in speaker?.bufferFinished(generation: current) }
                 }
             }
         }

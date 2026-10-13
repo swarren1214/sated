@@ -243,7 +243,8 @@ final class CoachConversation {
         request.taskHint = .dictation
         self.request.withLockUnchecked { $0 = request }
         task = Self.recognize(with: recognizer, request: request) { [weak self] text, isFinal, failed in
-            Task { @MainActor in self?.heard(text, isFinal: isFinal || failed, turn: current) }
+            let conversation = self
+            Task { @MainActor in conversation?.heard(text, isFinal: isFinal || failed, turn: current) }
         }
     }
 

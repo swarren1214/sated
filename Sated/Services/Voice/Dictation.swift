@@ -61,8 +61,9 @@ final class Dictation {
             self.request = request
 
             Self.installTap(on: engine.inputNode, request: request) { [weak self] level in
+                let dictation = self
                 Task { @MainActor in
-                    guard let self, current == self.session else { return }
+                    guard let self = dictation, current == self.session else { return }
                     self.level = level
                 }
             }
@@ -70,8 +71,9 @@ final class Dictation {
             try engine.start()
 
             task = Self.recognize(with: recognizer, request: request) { [weak self] text, isFinal, failed in
+                let dictation = self
                 Task { @MainActor in
-                    guard let self, current == self.session else { return }
+                    guard let self = dictation, current == self.session else { return }
                     if let text { self.transcript = text }
                     if isFinal || failed { self.finish() }
                 }

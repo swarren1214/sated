@@ -116,7 +116,7 @@ struct SettingsView: View {
                 // The app icon, from the exports in Developer/app-icons (Assets › AppIconImage),
                 // light and dark.
                 HStack(spacing: 14) {
-                    Image(.appIconImage)
+                    Image("AppIconImage")
                         .resizable()
                         .scaledToFit()
                         .frame(width: 60, height: 60)

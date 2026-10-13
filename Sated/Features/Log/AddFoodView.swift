@@ -102,7 +102,7 @@ struct AddFoodView: View {
                 ScannerView(meal: meal) { router.finishAdding() }
             }
             .fullScreenCover(isPresented: $showsVoice) {
-                VoiceLogView(meal: meal) { router.finishAdding() }
+                VoiceLogView(meal: meal, onAdded: { router.finishAdding() })
             }
             .sheet(isPresented: $showsQuickAdd) {
                 QuickAddView(meal: meal) { router.finishAdding() }
