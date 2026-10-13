@@ -120,6 +120,8 @@ struct FoodDetailView: View {
         case .label: "From the label"
         case .voice: "From voice"
         case .quickAdd: "Quick Add"
+        case .restaurant: "Restaurant menu"
+        case .estimate: "Estimate"
         }
     }
 }

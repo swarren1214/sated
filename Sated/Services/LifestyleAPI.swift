@@ -4,14 +4,24 @@ import Foundation
 import OSLog
 import Security
 
+/// The app's identity with the shared Lifestyle API: a silent anonymous Supabase session (or
+/// Sign in with Apple), kept in the Keychain. `APIClient` asks it for tokens.
+///
+/// Reliability:
+/// - A token is reused until a minute before it expires.
+/// - Only one sign-in or refresh runs at a time; everyone else waits for it. (Two refreshes
+///   at once would spend the same refresh token twice, and Supabase rejects the second.)
+/// - A new anonymous user is created only when Supabase rejects the refresh token, never
+///   because the network or Supabase failed, so a bad connection can't churn identities.
+/// - If the Keychain can't be written, the session still works for this launch.
 actor LifestyleAPI {
     static let shared = LifestyleAPI()
 
-    struct Identity: Decodable, Sendable {
+    nonisolated struct Identity: Decodable, Sendable {
         let id: String
     }
 
-    private struct AuthUser: Codable, Sendable {
+    nonisolated private struct AuthUser: Codable, Sendable {
         let id: String
         let isAnonymous: Bool?
 
@@ -21,7 +31,7 @@ actor LifestyleAPI {
         }
     }
 
-    private struct AuthSession: Codable, Sendable {
+    nonisolated private struct AuthSession: Codable, Sendable {
         let accessToken: String
         let refreshToken: String
         let expiresAt: Int
@@ -35,7 +45,7 @@ actor LifestyleAPI {
         }
     }
 
-    private struct AuthError: Decodable {
+    nonisolated private struct AuthError: Decodable, Sendable {
         let msg: String?
         let message: String?
         let errorDescription: String?
@@ -46,16 +56,20 @@ actor LifestyleAPI {
         }
     }
 
-    enum ClientError: LocalizedError {
+    nonisolated enum ClientError: LocalizedError, Sendable {
         case invalidResponse
         case service(String)
+        /// Supabase refused the request (an expired refresh token, or sign-ins turned off).
+        case rejected(String)
+        case rateLimited
         case missingAppleToken
         case missingAppleNonce
 
         var errorDescription: String? {
             switch self {
             case .invalidResponse: "The identity service returned an invalid response."
-            case .service(let message): message
+            case .service(let message), .rejected(let message): message
+            case .rateLimited: "Too many requests just now. Try again in a minute."
             case .missingAppleToken: "Apple did not provide an identity token. Please try again."
             case .missingAppleNonce: "The Apple sign-in request expired. Please try again."
             }
@@ -68,6 +82,7 @@ actor LifestyleAPI {
 
     private let session: URLSession
     private var authSession: AuthSession?
+    private var renewal: Task<AuthSession, Error>?
 
     init(session: URLSession = .shared) {
         self.session = session
@@ -76,10 +91,24 @@ actor LifestyleAPI {
 
     func prepareSession() async {
         do {
-            _ = try await identity()
+            _ = try await accessToken()
         } catch {
             Self.log.error("API session setup failed: \(error.localizedDescription, privacy: .public)")
         }
+    }
+
+    /// A valid access token. `renew` forces a refresh, after the API rejected the current one.
+    func accessToken(renew: Bool = false) async throws -> String {
+        if !renew, let authSession, authSession.expiresAt > Int(Date().timeIntervalSince1970) + 60 {
+            return authSession.accessToken
+        }
+        if let renewal {
+            return try await renewal.value.accessToken
+        }
+        let task = Task { try await self.obtainSession() }
+        renewal = task
+        defer { renewal = nil }
+        return try await task.value.accessToken
     }
 
     func identity() async throws -> Identity {
@@ -102,7 +131,7 @@ actor LifestyleAPI {
             "nonce": nonce,
         ])
         let newSession: AuthSession = try await auth(path: "/auth/v1/token?grant_type=id_token", body: body)
-        try store(newSession)
+        store(newSession)
     }
 
     nonisolated static func prepareAppleRequest(_ request: ASAuthorizationAppleIDRequest) throws -> String {
@@ -117,11 +146,9 @@ actor LifestyleAPI {
     }
 
     private func authorizedData(path: String, method: String = "GET", body: Data? = nil) async throws -> Data {
-        var current = try await validSession()
-        var result = try await apiRequest(path: path, method: method, body: body, accessToken: current.accessToken)
+        var result = try await apiRequest(path: path, method: method, body: body, accessToken: accessToken())
         if result.response.statusCode == 401 {
-            current = try await refresh(current.refreshToken)
-            result = try await apiRequest(path: path, method: method, body: body, accessToken: current.accessToken)
+            result = try await apiRequest(path: path, method: method, body: body, accessToken: accessToken(renew: true))
         }
         guard (200..<300).contains(result.response.statusCode) else {
             throw Self.error(from: result.data, status: result.response.statusCode)
@@ -141,13 +168,14 @@ actor LifestyleAPI {
         return (data, response)
     }
 
-    private func validSession() async throws -> AuthSession {
-        if let authSession, authSession.expiresAt > Int(Date().timeIntervalSince1970) + 60 {
-            return authSession
-        }
+    /// Refreshes the session, or signs in anonymously when there's none or Supabase rejects
+    /// the refresh token. Network and server failures are thrown as they are.
+    private func obtainSession() async throws -> AuthSession {
         if let refreshToken = authSession?.refreshToken {
-            do { return try await refresh(refreshToken) }
-            catch {
+            do {
+                return try await refresh(refreshToken)
+            } catch ClientError.rejected(let message) {
+                Self.log.notice("Refresh token rejected (\(message, privacy: .public)); starting a new anonymous session")
                 Self.deleteStoredSession()
                 authSession = nil
             }
@@ -157,14 +185,14 @@ actor LifestyleAPI {
 
     private func signInAnonymously() async throws -> AuthSession {
         let newSession: AuthSession = try await auth(path: "/auth/v1/signup", body: Data("{}".utf8))
-        try store(newSession)
+        store(newSession)
         return newSession
     }
 
     private func refresh(_ refreshToken: String) async throws -> AuthSession {
         let body = try JSONSerialization.data(withJSONObject: ["refresh_token": refreshToken])
         let refreshed: AuthSession = try await auth(path: "/auth/v1/token?grant_type=refresh_token", body: body)
-        try store(refreshed)
+        store(refreshed)
         return refreshed
     }
 
@@ -177,13 +205,24 @@ actor LifestyleAPI {
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         let (data, response) = try await session.data(for: request)
         guard let response = response as? HTTPURLResponse else { throw ClientError.invalidResponse }
-        guard (200..<300).contains(response.statusCode) else { throw Self.error(from: data, status: response.statusCode) }
-        do { return try JSONDecoder().decode(T.self, from: data) }
-        catch { throw ClientError.invalidResponse }
+        switch response.statusCode {
+        case 200..<300:
+            do { return try JSONDecoder().decode(T.self, from: data) }
+            catch { throw ClientError.invalidResponse }
+        case 429:
+            throw ClientError.rateLimited
+        case 400..<500:
+            // An expired or reused refresh token, or anonymous sign-ins turned off (422).
+            throw ClientError.rejected(Self.message(from: data, status: response.statusCode))
+        default:
+            throw Self.error(from: data, status: response.statusCode)
+        }
     }
 
-    private func store(_ session: AuthSession) throws {
-        let data = try JSONEncoder().encode(session)
+    /// Keeps the session for this launch, and in the Keychain for the next.
+    private func store(_ session: AuthSession) {
+        authSession = session
+        guard let data = try? JSONEncoder().encode(session) else { return }
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: Self.keychainService,
@@ -193,17 +232,15 @@ actor LifestyleAPI {
             kSecValueData as String: data,
             kSecAttrAccessible as String: kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly,
         ]
-        let updateStatus = SecItemUpdate(query as CFDictionary, attributes as CFDictionary)
-        if updateStatus == errSecItemNotFound {
+        var status = SecItemUpdate(query as CFDictionary, attributes as CFDictionary)
+        if status == errSecItemNotFound {
             var item = query
             attributes.forEach { item[$0.key] = $0.value }
-            guard SecItemAdd(item as CFDictionary, nil) == errSecSuccess else {
-                throw ClientError.service("Could not securely save the API session.")
-            }
-        } else if updateStatus != errSecSuccess {
-            throw ClientError.service("Could not securely update the API session.")
+            status = SecItemAdd(item as CFDictionary, nil)
         }
-        authSession = session
+        if status != errSecSuccess {
+            Self.log.error("Couldn't save the API session to the Keychain (\(status))")
+        }
     }
 
     private nonisolated static func loadSession() -> AuthSession? {
@@ -230,9 +267,12 @@ actor LifestyleAPI {
         SecItemDelete(query as CFDictionary)
     }
 
-    private nonisolated static func error(from data: Data, status: Int) -> ClientError {
+    private nonisolated static func message(from data: Data, status: Int) -> String {
         let detail = try? JSONDecoder().decode(AuthError.self, from: data)
-        let message = detail?.message ?? detail?.msg ?? detail?.errorDescription
-        return .service(message ?? "The service returned HTTP \(status).")
+        return detail?.message ?? detail?.msg ?? detail?.errorDescription ?? "The service returned HTTP \(status)."
+    }
+
+    private nonisolated static func error(from data: Data, status: Int) -> ClientError {
+        .service(message(from: data, status: status))
     }
 }

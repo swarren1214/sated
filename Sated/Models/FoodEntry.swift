@@ -31,6 +31,16 @@ nonisolated enum Meal: String, CaseIterable, Identifiable, Codable, Sendable {
 /// Where an entry's nutrition came from.
 nonisolated enum FoodSource: String, Codable, Sendable {
     case usda, openFoodFacts, label, voice, quickAdd
+    /// A chain's published menu nutrition.
+    case restaurant
+    /// Sated's estimate for a restaurant that doesn't publish nutrition.
+    case estimate
+}
+
+/// A restaurant an entry was eaten at: Apple Maps' identifier for it (when known) and its name.
+nonisolated struct PlaceRef: Hashable, Codable, Sendable {
+    var id: String
+    var name: String
 }
 
 /// One food the person ate. Nutrients are stored per serving; `servings` scales them.
@@ -53,6 +63,9 @@ final class FoodEntry {
     var sourceRaw: String = FoodSource.usda.rawValue
     /// The bundled food or barcode this came from, so it can be logged again from Recent.
     var foodID: String?
+    /// The restaurant it was eaten at, for Your Spots, usuals and "last time here".
+    var placeID: String?
+    var placeName: String?
 
     init(
         date: Date = .now,
@@ -63,7 +76,8 @@ final class FoodEntry {
         servings: Double = 1,
         perServing: Nutrients,
         source: FoodSource,
-        foodID: String? = nil
+        foodID: String? = nil,
+        place: PlaceRef? = nil
     ) {
         self.date = date
         self.mealRaw = meal.rawValue
@@ -78,6 +92,13 @@ final class FoodEntry {
         self.fiberPerServing = perServing.fiber
         self.sourceRaw = source.rawValue
         self.foodID = foodID
+        self.placeID = place?.id
+        self.placeName = place?.name
+    }
+
+    var place: PlaceRef? {
+        guard let placeName else { return nil }
+        return PlaceRef(id: placeID ?? placeName, name: placeName)
     }
 
     var meal: Meal {

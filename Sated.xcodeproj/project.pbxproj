@@ -392,6 +392,7 @@
 				INFOPLIST_KEY_NSCameraUsageDescription = "Sated uses the camera to scan barcodes and nutrition labels.";
 				INFOPLIST_KEY_NSHealthShareUsageDescription = "Sated reads your active energy to show calories burned on Today.";
 				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "Sated saves the calories, protein, carbs, fat and fiber you log to Apple Health.";
+				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Sated shows restaurants near you while you're logging a meal out. Your location isn't saved.";
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Sated listens when you say what you ate or ask Coach a question.";
 				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "Sated turns what you say into text on this device, so you can log food and talk to Coach.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
@@ -433,6 +434,7 @@
 				INFOPLIST_KEY_NSCameraUsageDescription = "Sated uses the camera to scan barcodes and nutrition labels.";
 				INFOPLIST_KEY_NSHealthShareUsageDescription = "Sated reads your active energy to show calories burned on Today.";
 				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "Sated saves the calories, protein, carbs, fat and fiber you log to Apple Health.";
+				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Sated shows restaurants near you while you're logging a meal out. Your location isn't saved.";
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Sated listens when you say what you ate or ask Coach a question.";
 				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "Sated turns what you say into text on this device, so you can log food and talk to Coach.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;

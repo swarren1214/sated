@@ -153,6 +153,48 @@ new day empty on their own. Taps open `sated://today`, `sated://add` or `sated:/
 Ring colors follow the accent picked in Settings; the important parts are marked accentable,
 so tinted and clear Home Screens look right.
 
+## Eating out
+
+Add Food › **Eat Out** (the green tile), or the **You're at…** card that appears on Add Food
+when Sated already has location permission and you're at a restaurant.
+
+- **Places** come from Apple Maps (`Services/Restaurants/Places.swift`): restaurants, cafés,
+  bakeries and bars within 800 m, plus search. Location is asked for only on the Eating Out
+  screen, once per visit, and never saved. "You're here" is the nearest place within 75 m
+  (up to 150 m with a rough fix).
+- **Menus** for chains come from the Lifestyle API (`GET /v1/restaurants/menu`, backed by
+  fatsecret). "Full menu" badges come from `POST /v1/restaurants/lookup`. Pick a serving and
+  how many, then log it, or add several items to **Your Plate** and log them together.
+- **Estimate** covers everywhere else: common dishes for the cuisine its name suggests (from
+  the bundled USDA foods), search, **Scan the Menu** (tap a dish on a printed menu), **Say
+  What You Had**, and **Last Time Here**. Portions are Small / Regular (1½ servings) / Large,
+  and every number shows "≈".
+- **Your Spots** and **Your Usual** come from your own log: entries remember the place
+  (`FoodEntry.placeID`, `placeName`), so they work offline.
+
+### Reliability
+
+- `Services/LifestyleAPI.swift` (the shared identity, see below): tokens are refreshed a
+  minute before they expire, only one refresh runs at a time, and a new anonymous user is
+  made only when Supabase rejects the refresh token, never because the network failed.
+- `Services/API/APIClient.swift`: 15 s timeouts and up to three tries for timeouts, 5xx and
+  short rate limits (0.6 s, then 1.2 s, with jitter; a short `Retry-After` is honored).
+  A rejected token is renewed once. Offline, "not configured" and bad requests aren't
+  retried. Every failure becomes an `APIError` with a plain message.
+- `Services/Restaurants/RestaurantStore.swift`: menus are saved in Caches for 24 hours (the
+  provider's limit), shown at once and refreshed after 6 hours. If the network fails, the
+  saved copy stays up with a note instead of an error. Two screens asking for one menu
+  share a request. "Has a menu" answers are kept a week (a "no" for a day).
+- When nothing works (no connection and no saved menu), the menu screen offers Try Again
+  and Estimate Instead, so logging never dead-ends.
+
+### Setup
+
+`App/AppConfig.swift` holds the API URL and the Supabase project's publishable key. In
+Supabase, **Authentication › Sign In / Providers › Allow anonymous sign-ins** must be on.
+The API needs `FATSECRET_CLIENT_ID` and `FATSECRET_CLIENT_SECRET` (see lifestyle-api's README).
+Menu nutrition must be credited "Powered by fatsecret"; the menu screen and Settings › About do.
+
 ## Logging other days
 
 Today has a calendar button next to Settings (a sideways swipe moves a day at a time). Everything
@@ -189,11 +231,13 @@ suggested plates always go to today.
 Sated/
   App/            App entry, tab bar, configuration, preview data
   DesignSystem/   Accent and appearance options, macro colors, shared components
-  Features/       Today, Log (Add Food, detail, scan, voice, quick add), Coach, Trends, Settings
+  Features/       Today, Log (Add Food, detail, scan, voice, quick add), Eat Out, Coach,
+                  Trends, Settings
   Models/         SwiftData FoodEntry, nutrients and goals, summary math
   Resources/      Bundled foods
   Services/       Food (database, Open Food Facts), Health, Coach (model, tools, parsers),
-                  Voice (dictation, Kokoro, spoken replies)
+                  Voice (dictation, Kokoro, spoken replies), LifestyleAPI and API
+                  (shared identity, client), Restaurants (menus, places, history)
 Packages/         KokoroSwift and MisakiSwift (vendored from Hearken)
 SatedTests/       Swift Testing
 scripts/          build_foods.py (USDA import)
@@ -213,6 +257,7 @@ Sated is for general wellness and isn't medical advice.
 
 ## Shared API identity
 
-Sated silently creates and refreshes an anonymous Supabase session in the Keychain, then uses
-its bearer token for the shared Lifestyle API. The app remains usable offline and does not upload
+Sated silently creates and refreshes an anonymous Supabase session in the Keychain
+(`Services/LifestyleAPI.swift`), then uses its bearer token for the shared Lifestyle API
+through `Services/API/APIClient.swift`. The app remains usable offline and does not upload
 food logs, health data, or coach conversations.

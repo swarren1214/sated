@@ -9,6 +9,8 @@ struct VoiceLogView: View {
     var onAdded: () -> Void = {}
     /// Called when the person taps Type Instead: Add Food's search takes over.
     var onType: () -> Void = {}
+    /// The restaurant, when saying what was eaten while eating out.
+    var place: PlaceRef?
 
     enum Phase: Equatable {
         case listening
@@ -30,8 +32,9 @@ struct VoiceLogView: View {
     /// Set when the person closes the screen, so stopping the microphone doesn't log anything.
     @State private var closing = false
 
-    init(meal: Meal, onAdded: @escaping () -> Void = {}, onType: @escaping () -> Void = {}) {
+    init(meal: Meal, place: PlaceRef? = nil, onAdded: @escaping () -> Void = {}, onType: @escaping () -> Void = {}) {
         self.meal = meal
+        self.place = place
         self.onAdded = onAdded
         self.onType = onType
         _targetMeal = State(initialValue: meal)
@@ -231,7 +234,7 @@ struct VoiceLogView: View {
     private func logAll() {
         for item in matched {
             guard let food = item.food else { continue }
-            FoodLog.add(food, servings: item.servings, meal: targetMeal, in: context)
+            FoodLog.add(food, servings: item.servings, meal: targetMeal, place: place, in: context)
         }
         dismiss()
         onAdded()

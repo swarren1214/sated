@@ -16,7 +16,8 @@ struct AddFoodView: View {
 
     @State private var query = ""
     @State private var meal: Meal = .suggested()
-    @State private var path: [FoodItem] = []
+    @State private var path = NavigationPath()
+    @State private var nearby = NearbyPlaces.shared
     @State private var showsScanner = false
     @State private var showsVoice = false
     @State private var showsQuickAdd = false
@@ -53,11 +54,20 @@ struct AddFoodView: View {
                         QuickActions(
                             scan: { showsScanner = true },
                             voice: OnDeviceModel.isOffered ? { showsVoice = true } : nil,
-                            quickAdd: { showsQuickAdd = true }
+                            quickAdd: { showsQuickAdd = true },
+                            eatOut: { path.append(EatOutRoute.restaurants) }
                         )
                         .listRowBackground(Color.clear)
                         .listRowInsets(EdgeInsets())
                         .listRowSeparator(.hidden)
+
+                        if let here = nearby.here {
+                            HereCard(place: here, hasMenu: nearby.hasMenu[here.name])
+                                .listRowBackground(Color.clear)
+                                .listRowInsets(EdgeInsets())
+                                .listRowSeparator(.hidden)
+                                .transition(.opacity)
+                        }
                     }
                 }
 
@@ -103,6 +113,21 @@ struct AddFoodView: View {
             .navigationDestination(for: FoodItem.self) { food in
                 FoodDetailView(food: food, meal: meal) { router.finishAdding() }
             }
+            .navigationDestination(for: EatOutRoute.self) { route in
+                switch route {
+                case .restaurants:
+                    RestaurantsView()
+                case .place(let place):
+                    RestaurantMenuView(place: place, meal: meal) { router.finishAdding() }
+                case .estimate(let place):
+                    EstimateMealView(place: place, meal: meal) { router.finishAdding() }
+                }
+            }
+            .task {
+                // "You're at…" only when location is already allowed: Add Food never asks.
+                if Places.isAuthorized { await nearby.refresh() }
+            }
+            .animation(.snappy, value: nearby.here)
             .fullScreenCover(isPresented: $showsScanner) {
                 ScannerView(meal: meal) { router.finishAdding() }
             }
@@ -124,7 +149,7 @@ struct AddFoodView: View {
         .onChange(of: router.tab) { _, tab in
             // Leaving the tab resets it, so the next visit starts at the search.
             if tab != .add {
-                path = []
+                path = NavigationPath()
                 query = ""
             }
         }
@@ -135,6 +160,7 @@ private struct QuickActions: View {
     var scan: () -> Void
     var voice: (() -> Void)?
     var quickAdd: () -> Void
+    var eatOut: () -> Void
 
     var body: some View {
         HStack(spacing: 8) {
@@ -143,6 +169,7 @@ private struct QuickActions: View {
                 tile("Say It", symbol: "waveform", colors: [Color(hex: 0xA44BE0), Color(hex: 0xD6336C)], action: voice)
             }
             tile("Quick Add", symbol: "plus", colors: [Color(hex: 0xF08A1C), Color(hex: 0xD9441A)], action: quickAdd)
+            tile("Eat Out", symbol: "fork.knife", colors: [Color(hex: 0x30C48D), Color(hex: 0x0E8A8A)], action: eatOut)
         }
         .padding(.vertical, 4)
     }
@@ -168,6 +195,42 @@ private struct QuickActions: View {
             .contentShape(.rect(cornerRadius: 20))
         }
         .buttonStyle(.plain)
+    }
+}
+
+/// "You're at Casa Verde": one tap to its menu, or to Estimate when it doesn't publish one.
+private struct HereCard: View {
+    var place: Place
+    var hasMenu: Bool?
+
+    var body: some View {
+        NavigationLink(value: EatOutRoute.place(place)) {
+            HStack(spacing: 12) {
+                PlaceBadge(place: place, size: 44)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("You're at")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                        .textCase(.uppercase)
+                    Text(place.name)
+                        .font(.headline)
+                        .foregroundStyle(.primary)
+                        .lineLimit(1)
+                    Text(hasMenu == false ? "Estimate your meal" : "Log from the menu")
+                        .font(.subheadline)
+                        .foregroundStyle(.tint)
+                }
+                Spacer(minLength: 4)
+                Image(systemName: "chevron.right")
+                    .font(.footnote.weight(.semibold))
+                    .foregroundStyle(.tertiary)
+            }
+            .padding(14)
+            .background(Color(.secondarySystemGroupedBackground), in: .rect(cornerRadius: 20))
+            .contentShape(.rect(cornerRadius: 20))
+        }
+        .buttonStyle(.plain)
+        .padding(.bottom, 4)
     }
 }
 

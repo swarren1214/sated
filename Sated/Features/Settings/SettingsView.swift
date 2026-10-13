@@ -109,7 +109,7 @@ struct SettingsView: View {
             } header: {
                 Text("Your Data")
             } footer: {
-                Text("Your log lives on this \(DeviceName.current) and in your private iCloud. Sated has no servers and can't see your data.")
+                Text("Your log lives on this \(DeviceName.current) and in your private iCloud. When you look up a restaurant, only its name is sent to get the menu; nothing you log ever leaves your devices.")
             }
 
             Section("About") {
@@ -133,6 +133,9 @@ struct SettingsView: View {
                     .font(.footnote)
                     .foregroundStyle(.secondary)
                 Text(AppConfig.foodDataCredit)
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                Text("Restaurant menu nutrition powered by fatsecret. Places from Apple Maps.")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
                 Text("Sated is for general wellness and isn't medical advice. Talk with a doctor or registered dietitian before big changes to how you eat.")
