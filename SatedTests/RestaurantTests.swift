@@ -160,3 +160,30 @@ struct EatingOutTests {
         #expect(line.nutrients.protein == 24)
     }
 }
+
+struct LogoTests {
+    @Test func websitesBecomeTheirRegistrableDomain() {
+        #expect(Place.domain(from: URL(string: "https://locations.chipotle.com/ut/salt-lake-city")) == "chipotle.com")
+        #expect(Place.domain(from: URL(string: "https://www.In-N-Out.com")) == "in-n-out.com")
+        #expect(Place.domain(from: URL(string: "https://order.wagamama.co.uk/menu")) == "wagamama.co.uk")
+        #expect(Place.domain(from: URL(string: "http://example.com.")) == "example.com")
+    }
+
+    @Test func sharedHostsGetNoLogo() {
+        #expect(Place.domain(from: URL(string: "https://www.facebook.com/LuigisTrattoria")) == nil)
+        #expect(Place.domain(from: URL(string: "https://luigis.square.site")) == nil)
+        #expect(Place.domain(from: URL(string: "https://order.toasttab.com/online/luigis")) == nil)
+        #expect(Place.domain(from: URL(string: "http://192.168.1.10")) == nil)
+        #expect(Place.domain(from: nil) == nil)
+    }
+
+    @Test func logosPreferTheDomainAndNeedOneOrAChain() {
+        let both = LogoKey(domain: "chipotle.com", chain: "Chipotle")
+        #expect(both?.domain == "chipotle.com")
+        #expect(both?.name == nil)
+        #expect(both?.id == "d:chipotle.com")
+        #expect(LogoKey(domain: nil, chain: "Raising Cane's")?.id == "n:raising canes")
+        #expect(LogoKey(domain: nil, chain: "  ") == nil)
+        #expect(LogoKey(domain: nil, chain: nil) == nil)
+    }
+}

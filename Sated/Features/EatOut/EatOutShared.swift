@@ -28,6 +28,8 @@ final class NearbyPlaces {
     private(set) var here: Place?
     /// Which places have menus, by name. Missing means not known yet.
     private(set) var hasMenu: [String: Bool] = [:]
+    /// The chain each place matched, by place name, for chain logos.
+    private(set) var chains: [String: String] = [:]
     @ObservationIgnored private var loadedAt: Date?
     @ObservationIgnored private var loading: Task<Void, Never>?
 
@@ -71,30 +73,66 @@ final class NearbyPlaces {
     /// Fills in the "Full menu" badges: saved answers at once, then the rest from the API.
     func lookUpMenus(_ names: [String]) async {
         for name in names where hasMenu[name] == nil {
-            if let known = await RestaurantStore.shared.knownHasMenu(name) { hasMenu[name] = known }
+            if let known = await RestaurantStore.shared.known(name) { note(name, known) }
         }
         let unknown = names.filter { hasMenu[$0] == nil }
         guard !unknown.isEmpty else { return }
-        let answers = await RestaurantStore.shared.lookup(unknown)
-        hasMenu.merge(answers) { $1 }
+        for (name, answer) in await RestaurantStore.shared.lookup(unknown) { note(name, answer) }
+    }
+
+    /// Records what's known about a place, from a lookup or an opened menu.
+    func note(_ name: String, _ answer: LookupAnswer) {
+        hasMenu[name] = answer.hasMenu
+        if answer.hasMenu, let restaurant = answer.restaurant { chains[name] = restaurant }
     }
 }
 
-/// A place's two-letter badge.
+/// A place's badge: its logo when Logo.dev has one (found by the place's website, or by the
+/// chain it matched), otherwise its initials. The initials show at once and stay if anything
+/// about the logo fails.
 struct PlaceBadge: View {
     var place: Place
     var size: CGFloat = 40
+    @State private var logo: UIImage?
+
+    private var logoKey: LogoKey? {
+        LogoKey(domain: place.domain, chain: NearbyPlaces.shared.chains[place.name])
+    }
 
     var body: some View {
-        Text(place.initials)
-            .font(.system(size: size * 0.36, weight: .bold, design: .rounded))
-            .foregroundStyle(.white)
-            .frame(width: size, height: size)
-            .background(
-                LinearGradient(colors: [Color(hex: 0x30C48D), Color(hex: 0x0E8A8A)], startPoint: .topLeading, endPoint: .bottomTrailing),
-                in: .rect(cornerRadius: size * 0.28)
-            )
-            .accessibilityHidden(true)
+        let shape = RoundedRectangle(cornerRadius: size * 0.28, style: .continuous)
+        ZStack {
+            if let logo {
+                Image(uiImage: logo)
+                    .resizable()
+                    .interpolation(.high)
+                    .scaledToFit()
+                    .padding(size * 0.12)
+                    .frame(width: size, height: size)
+                    .background(Color.white, in: shape)
+                    .overlay(shape.strokeBorder(Color.primary.opacity(0.08), lineWidth: 0.5))
+                    .transition(.opacity)
+            } else {
+                Text(place.initials)
+                    .font(.system(size: size * 0.36, weight: .bold, design: .rounded))
+                    .foregroundStyle(.white)
+                    .frame(width: size, height: size)
+                    .background(
+                        LinearGradient(colors: [Color(hex: 0x30C48D), Color(hex: 0x0E8A8A)], startPoint: .topLeading, endPoint: .bottomTrailing),
+                        in: shape
+                    )
+            }
+        }
+        .frame(width: size, height: size)
+        .accessibilityHidden(true)
+        .task(id: logoKey) {
+            guard let key = logoKey else {
+                logo = nil
+                return
+            }
+            let image = await LogoStore.shared.image(for: key)
+            withAnimation(.easeOut(duration: 0.2)) { logo = image }
+        }
     }
 }
 

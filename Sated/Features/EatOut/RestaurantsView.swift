@@ -31,7 +31,11 @@ struct RestaurantsView: View {
             }
 
             Section {} footer: {
-                Text("Places from Apple Maps. Your location is used only while you're looking for a place, and isn't saved. “Full menu” chains publish their nutrition; everywhere else, Sated helps you estimate.")
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("Places from Apple Maps. Your location is used only while you're looking for a place, and isn't saved. “Full menu” chains publish their nutrition; everywhere else, Sated helps you estimate.")
+                    Link("Logos provided by Logo.dev", destination: URL(string: "https://logo.dev")!)
+                        .font(.footnote.weight(.semibold))
+                }
             }
         }
         .readableWidth(820)

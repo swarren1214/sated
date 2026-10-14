@@ -11,6 +11,8 @@ nonisolated struct Place: Identifiable, Hashable, Sendable {
     var longitude: Double?
     /// From the person, in meters, when their location is known.
     var distance: Double?
+    /// The place's own website domain ("chipotle.com"), from Apple Maps, for its logo.
+    var domain: String?
 
     var ref: PlaceRef { PlaceRef(id: id, name: name) }
 
@@ -19,13 +21,39 @@ nonisolated struct Place: Identifiable, Hashable, Sendable {
         return CLLocationCoordinate2D(latitude: latitude, longitude: longitude)
     }
 
-    init(id: String, name: String, kind: String? = nil, latitude: Double? = nil, longitude: Double? = nil, distance: Double? = nil) {
+    init(id: String, name: String, kind: String? = nil, latitude: Double? = nil, longitude: Double? = nil, distance: Double? = nil, domain: String? = nil) {
         self.id = id
         self.name = name
         self.kind = kind
         self.latitude = latitude
         self.longitude = longitude
         self.distance = distance
+        self.domain = domain
+    }
+
+    /// Hosts that serve many businesses (social pages, ordering and site builders). Their logo
+    /// would be theirs, not the restaurant's, so a place whose website is on one gets no logo.
+    static let sharedHosts: Set<String> = [
+        "facebook.com", "instagram.com", "twitter.com", "x.com", "tiktok.com", "yelp.com", "google.com",
+        "business.site", "linktr.ee", "linkin.bio", "square.site", "squareup.com", "toasttab.com", "clover.com",
+        "doordash.com", "ubereats.com", "grubhub.com", "seamless.com", "postmates.com", "order.online",
+        "menufy.com", "popmenu.com", "chownow.com", "slicelife.com", "beyondmenu.com", "wixsite.com", "wix.com",
+        "squarespace.com", "weebly.com", "godaddysites.com", "wordpress.com", "blogspot.com", "carrd.co",
+        "opentable.com", "resy.com", "tripadvisor.com", "apple.com", "spoton.com", "bentobox.com",
+    ]
+
+    /// The registrable domain of a website ("locations.chipotle.com" → "chipotle.com",
+    /// "order.wagamama.co.uk" → "wagamama.co.uk"), or nil for shared hosts and addresses.
+    static func domain(from url: URL?) -> String? {
+        guard var host = url?.host()?.lowercased(), host.contains("."), !host.allSatisfy({ $0.isNumber || $0 == "." || $0 == ":" }) else { return nil }
+        if host.hasSuffix(".") { host.removeLast() }
+        let labels = host.split(separator: ".").map(String.init)
+        guard labels.count >= 2, labels.allSatisfy({ !$0.isEmpty }) else { return nil }
+        // "co.uk", "com.au": a short second level under a two-letter country code takes three labels.
+        let secondLevel = labels[labels.count - 2]
+        let keep = labels.count >= 3 && labels.last!.count == 2 && ["co", "com", "org", "net", "ac", "gov", "edu", "ne", "or"].contains(secondLevel) ? 3 : 2
+        let domain = labels.suffix(keep).joined(separator: ".")
+        return sharedHosts.contains(domain) ? nil : domain
     }
 
     init(_ ref: PlaceRef) {
@@ -156,7 +184,8 @@ enum Places {
                 kind: kind(item.pointOfInterestCategory),
                 latitude: itemLocation.coordinate.latitude,
                 longitude: itemLocation.coordinate.longitude,
-                distance: location.map { itemLocation.distance(from: $0) }
+                distance: location.map { itemLocation.distance(from: $0) },
+                domain: Place.domain(from: item.url)
             )
         }
         return all.sorted { ($0.distance ?? .infinity) < ($1.distance ?? .infinity) }

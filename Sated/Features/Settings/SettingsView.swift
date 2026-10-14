@@ -135,7 +135,7 @@ struct SettingsView: View {
                 Text(AppConfig.foodDataCredit)
                     .font(.footnote)
                     .foregroundStyle(.secondary)
-                Text("Restaurant menu nutrition powered by fatsecret. Places from Apple Maps.")
+                Text("Restaurant menu nutrition powered by fatsecret. Places from Apple Maps. Logos provided by Logo.dev.")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
                 Text("Sated is for general wellness and isn't medical advice. Talk with a doctor or registered dietitian before big changes to how you eat.")

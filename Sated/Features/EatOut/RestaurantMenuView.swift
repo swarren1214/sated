@@ -66,6 +66,7 @@ struct RestaurantMenuView: View {
                 result = fresh
                 error = nil
             }
+            NearbyPlaces.shared.note(place.name, LookupAnswer(hasMenu: fresh.menu.hasMenu, restaurant: fresh.menu.restaurant))
         } catch is CancellationError {
             return
         } catch {

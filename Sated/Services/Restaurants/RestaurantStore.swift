@@ -10,6 +10,12 @@ nonisolated struct MenuResult: Equatable, Sendable {
     var isOffline: Bool = false
 }
 
+/// What the API said about a place: whether it has a menu, and the chain it matched.
+nonisolated struct LookupAnswer: Equatable, Sendable {
+    var hasMenu: Bool
+    var restaurant: String?
+}
+
 /// Restaurant menus and "does this place have one" answers, from the Lifestyle API, with a
 /// small cache on the device so menus open instantly and still work with a bad connection.
 ///
@@ -34,6 +40,8 @@ actor RestaurantStore {
     nonisolated private struct SavedLookup: Codable, Sendable {
         var hasMenu: Bool
         var savedAt: Date
+        /// The matched chain's name. Optional, so lookups saved before it was kept still load.
+        var restaurant: String?
     }
 
     nonisolated private struct LookupBody: Encodable, Sendable {
@@ -86,7 +94,7 @@ actor RestaurantStore {
             inFlight[key] = nil
             let saved = SavedMenu(menu: menu, savedAt: now())
             store(saved, key: key)
-            remember(name, hasMenu: menu.hasMenu)
+            remember(name, hasMenu: menu.hasMenu, restaurant: menu.restaurant)
             return MenuResult(menu: menu, savedAt: saved.savedAt)
         } catch {
             inFlight[key] = nil
@@ -106,13 +114,18 @@ actor RestaurantStore {
         validLookup(Self.key(name))?.hasMenu
     }
 
+    /// The saved answer for a place, without asking.
+    func known(_ name: String) -> LookupAnswer? {
+        validLookup(Self.key(name)).map { LookupAnswer(hasMenu: $0.hasMenu, restaurant: $0.restaurant) }
+    }
+
     /// Which of these places have menus. Asks the API only about places it doesn't know yet,
     /// twelve at a time. Places it couldn't find out about are left out of the answer.
-    func lookup(_ names: [String]) async -> [String: Bool] {
-        var answers: [String: Bool] = [:]
+    func lookup(_ names: [String]) async -> [String: LookupAnswer] {
+        var answers: [String: LookupAnswer] = [:]
         var unknown: [String] = []
         for name in names where !Self.apiName(name).isEmpty {
-            if let known = knownHasMenu(name) { answers[name] = known } else if !unknown.contains(name) { unknown.append(name) }
+            if let known = known(name) { answers[name] = known } else if !unknown.contains(name) { unknown.append(name) }
         }
         for start in stride(from: 0, to: unknown.count, by: 12) {
             let batch = Array(unknown[start..<min(start + 12, unknown.count)])
@@ -122,8 +135,8 @@ actor RestaurantStore {
                 // One answer per name, in the order sent.
                 for (name, item) in zip(batch, response.items) {
                     guard let hasMenu = item.hasMenu else { continue }
-                    answers[name] = hasMenu
-                    remember(name, hasMenu: hasMenu, save: false)
+                    answers[name] = LookupAnswer(hasMenu: hasMenu, restaurant: item.restaurant)
+                    remember(name, hasMenu: hasMenu, restaurant: item.restaurant, save: false)
                 }
                 saveLookups()
             } catch {
@@ -206,9 +219,9 @@ actor RestaurantStore {
         return now().timeIntervalSince(saved.savedAt) < lifetime ? saved : nil
     }
 
-    private func remember(_ name: String, hasMenu: Bool, save: Bool = true) {
+    private func remember(_ name: String, hasMenu: Bool, restaurant: String?, save: Bool = true) {
         loadLookupsIfNeeded()
-        lookups?[Self.key(name)] = SavedLookup(hasMenu: hasMenu, savedAt: now())
+        lookups?[Self.key(name)] = SavedLookup(hasMenu: hasMenu, savedAt: now(), restaurant: restaurant)
         if save { saveLookups() }
     }
 

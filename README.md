@@ -169,6 +169,12 @@ when Sated already has location permission and you're at a restaurant.
   the bundled USDA foods), search, **Scan the Menu** (tap a dish on a printed menu), **Say
   What You Had**, and **Last Time Here**. Portions are Small / Regular (1½ servings) / Large,
   and every number shows "≈".
+- **Logos** come from Logo.dev through the Lifestyle API (`POST /v1/brands/logos`), found by
+  the place's own website from Apple Maps, or by the chain it matched. Never by a raw place
+  name, which could pull an unrelated company's logo; those keep their initials. Logos are
+  saved for 30 days (a "no logo" for 3), requests are batched, and any failure leaves the
+  initials (`Services/Restaurants/LogoStore.swift`). Credit "Logos provided by Logo.dev" is on
+  Eating Out and in Settings.
 - **Your Spots** and **Your Usual** come from your own log: entries remember the place
   (`FoodEntry.placeID`, `placeName`), so they work offline.
 
