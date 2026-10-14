@@ -6,7 +6,8 @@ SwiftData for the log, the user's own iCloud for personal data, and Apple's on-d
 for the coach. A silent anonymous Supabase session authenticates optional shared API calls; no
 food log or health data is stored there.
 
-Requires Xcode 26 and iOS 26 or iPadOS 26. iPhone and iPad.
+Requires Xcode 26 and iOS 26 or iPadOS 26. iPhone and iPad, with a companion Apple Watch app
+(watchOS 26).
 
 ## First run
 
@@ -153,6 +154,39 @@ new day empty on their own. Taps open `sated://today`, `sated://add` or `sated:/
 Ring colors follow the accent picked in Settings; the important parts are marked accentable,
 so tinted and clear Home Screens look right.
 
+## Apple Watch
+
+The **SatedWatch** target (`SatedWatch/`) is embedded in the iPhone app and installs with it.
+One screen:
+
+- **Today:** calories left as a ring, and protein against its goal.
+- **Say What You Ate:** dictate on the Watch ("two eggs and toast for breakfast"). The iPhone
+  parses it with the same on-device model and food database as Say It, and the Watch shows the
+  matched foods to confirm. Swipe to drop a wrong match; pick a different meal if needed.
+- **Usual for <meal>:** the foods most often logged at this time of day. Tap one, adjust the
+  servings, and log. The meal picker under the list shows another meal's usuals.
+
+Double Tap logs on any review screen.
+
+**How it works.** The iPhone keeps the log; the Watch has no database (iCloud sync is off, and
+the on-device model doesn't run on the Watch). Over WatchConnectivity:
+
+- The phone sends a `WatchSnapshot` (`Shared/WatchPayloads.swift`: today's totals, goals and
+  usuals) as the application context whenever `WidgetSync` runs, so the Watch always has the
+  latest even after being asleep. The Watch keeps the last one on disk.
+- Logs go phone-ward with `transferUserInfo`, which the system queues until the phone is in
+  range. Each has an ID; the phone files an ID once (`Services/WatchBridge.swift`) and lists
+  it in the next snapshot. Until then the Watch counts it into today's totals itself.
+- Dictation needs the phone nearby (`sendMessage` wakes the app in the background). Without
+  the on-device model, the phone falls back to a database search for the whole phrase.
+
+Usuals (`Services/Usuals.swift`) score each food by the days it was logged at that meal in the
+last 90 days, halving every 30 days, and keep the latest amount eaten. Meals with few entries
+are topped up with overall favorites.
+
+To run it: select the **SatedWatch** scheme with a paired Watch simulator or device. The
+bundle ID is `com.stephenwarren.sated.watchkitapp`, under the app's own.
+
 ## Eating out
 
 Add Food › **Eat Out** (the green tile), or the **You're at…** card that appears on Add Food
@@ -243,7 +277,10 @@ Sated/
   Resources/      Bundled foods
   Services/       Food (database, Open Food Facts), Health, Coach (model, tools, parsers),
                   Voice (dictation, Kokoro, spoken replies), LifestyleAPI and API
-                  (shared identity, client), Restaurants (menus, places, history)
+                  (shared identity, client), Restaurants (menus, places, history),
+                  WatchBridge and Usuals (Apple Watch)
+SatedWatch/       The Watch app: today, usuals, Say It
+Shared/           Types built into the app, widgets and Watch (snapshots, Meal, Watch payloads)
 Packages/         KokoroSwift and MisakiSwift (vendored from Hearken)
 SatedTests/       Swift Testing
 scripts/          build_foods.py (USDA import)
@@ -255,7 +292,8 @@ scripts/          build_foods.py (USDA import)
 - Let people name and save scanned-label foods as favorites.
 - Turn on CloudKit sync; sync goals through iCloud key-value storage.
 - App Intents ("Log my usual breakfast"), a Control Center "Log Food" control, and the
-  Action button.
+  Action button. Usuals already exist for this (`Services/Usuals.swift`).
+- Watch complications and Smart Stack widgets, from the Watch's snapshot.
 - Replace SFSpeechRecognizer with SpeechAnalyzer in `Services/Voice/Dictation.swift`.
 - A real app icon (the current one is a placeholder: a sun rising out of a bowl).
 

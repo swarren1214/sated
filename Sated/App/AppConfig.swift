@@ -5,7 +5,7 @@ enum AppConfig {
     /// Food entries sync through the person's private CloudKit database. Needs the iCloud
     /// (CloudKit), Push Notifications and Background Modes › Remote notifications capabilities.
     /// When false, the log stays on this device.
-    static let cloudSyncEnabled = false
+    static let cloudSyncEnabled = true
     static let cloudKitContainerID = "iCloud.com.stephenwarren.sated"
 
     nonisolated static let apiBaseURL = URL(string: "https://lifestyle-api-liart.vercel.app")!

@@ -19,12 +19,18 @@ enum FoodLog {
             foodID: food.id,
             place: place
         )
+        insert(entry, in: context)
+        UIImpactFeedbackGenerator(style: .light).impactOccurred()
+        return entry
+    }
+
+    /// Saves a ready-made entry and copies it to Apple Health. Used for entries made elsewhere,
+    /// like the Watch, that don't start from a `FoodItem`.
+    static func insert(_ entry: FoodEntry, in context: ModelContext) {
         context.insert(entry)
         try? context.save()
         let record = entry.record
         Task { await HealthService.shared.save(record) }
-        UIImpactFeedbackGenerator(style: .light).impactOccurred()
-        return entry
     }
 
     static func update(_ entry: FoodEntry, servings: Double, meal: Meal, in context: ModelContext) {

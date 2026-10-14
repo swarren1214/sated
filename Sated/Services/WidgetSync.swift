@@ -45,6 +45,8 @@ enum WidgetSync {
         guard let container, let url = WidgetSnapshot.url else { return }
         do {
             let data = try makeSnapshot(context: container.mainContext).encoded()
+            // The Watch has its own snapshot (with usuals) and skips sends that change nothing.
+            WatchBridge.shared.schedule()
             guard data != lastWritten else { return }
             try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
             try data.write(to: url, options: .atomic)

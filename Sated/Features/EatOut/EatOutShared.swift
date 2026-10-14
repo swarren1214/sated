@@ -100,17 +100,19 @@ struct PlaceBadge: View {
     }
 
     var body: some View {
-        let shape = RoundedRectangle(cornerRadius: size * 0.28, style: .continuous)
+        let shape = Circle()
         ZStack {
             if let logo {
+                // Edge to edge: Logo.dev's square logos fill the circle. White shows only
+                // behind logos with a transparent background.
                 Image(uiImage: logo)
                     .resizable()
                     .interpolation(.high)
-                    .scaledToFit()
-                    .padding(size * 0.12)
+                    .scaledToFill()
                     .frame(width: size, height: size)
-                    .background(Color.white, in: shape)
-                    .overlay(shape.strokeBorder(Color.primary.opacity(0.08), lineWidth: 0.5))
+                    .background(Color.white)
+                    .clipShape(shape)
+                    .overlay(shape.strokeBorder(Color.primary.opacity(0.1), lineWidth: 0.5))
                     .transition(.opacity)
             } else {
                 Text(place.initials)

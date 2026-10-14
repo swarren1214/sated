@@ -15,6 +15,7 @@ struct SatedApp: App {
         // Alerts use the system label color rather than the accent. Destructive buttons stay red.
         UIView.appearance(whenContainedInInstancesOf: [UIAlertController.self]).tintColor = .label
         WidgetSync.start(container: container)
+        WatchBridge.shared.start(container: container)
     }
 
     var body: some Scene {
