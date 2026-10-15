@@ -34,6 +34,8 @@ struct SettingsView: View {
 
     var body: some View {
         Form {
+            AccountSection()
+
             Section {
                 GoalRow(title: "Calories", unit: "kcal", color: accent.color, value: $goalCalories, range: 1200...6000, step: 50)
                 GoalRow(title: "Protein", unit: "g", color: Macro.protein.color, value: $goalProtein, range: 20...400, step: 5)
@@ -155,6 +157,93 @@ struct SettingsView: View {
     private var macroCheck: String {
         let implied = goalProtein * 4 + goalCarbs * 4 + goalFat * 9
         return "Your protein, carbs and fat goals add up to \(Int(implied.rounded()).formatted()) kcal."
+    }
+}
+
+/// Settings › Account: who's signed in, and Sign Out; or Sign in with Apple when signed out.
+private struct AccountSection: View {
+    @Environment(AccountStore.self) private var account
+    @State private var confirmsSignOut = false
+    @State private var isSigningOut = false
+
+    var body: some View {
+        Section {
+            switch account.status {
+            case .signedIn(let name, let email):
+                HStack(spacing: 14) {
+                    AccountAvatar(name: name)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(name ?? "Signed In").font(.headline)
+                        if let email {
+                            Text(email)
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
+                                .lineLimit(1)
+                                .truncationMode(.middle)
+                        }
+                        Label("Signed in with Apple", systemImage: "apple.logo")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                .padding(.vertical, 4)
+                .accessibilityElement(children: .combine)
+
+                Button("Sign Out", role: .destructive) { confirmsSignOut = true }
+                    .disabled(isSigningOut)
+                    .confirmationDialog("Sign out of Sated?", isPresented: $confirmsSignOut, titleVisibility: .visible) {
+                        Button("Sign Out", role: .destructive) {
+                            isSigningOut = true
+                            Task {
+                                await account.signOut()
+                                isSigningOut = false
+                            }
+                        }
+                    } message: {
+                        Text("This also signs you out of BigTable and Suffice on this \(DeviceName.current). Your food log stays on this \(DeviceName.current) and in iCloud.")
+                    }
+            case .signedOut:
+                LabeledContent("Status", value: "Not signed in")
+                AppleSignInButton()
+                    .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
+            case .unknown:
+                LabeledContent("Status") { ProgressView() }
+            }
+        } header: {
+            Text("Account")
+        } footer: {
+            Text(account.isSignedIn
+                 ? "One sign-in for Sated, BigTable and Suffice. Your food log isn't stored in your account."
+                 : "Sign in to use one account across Sated, BigTable and Suffice. Everything in Sated works without it.")
+        }
+    }
+}
+
+/// Initials in a circle: "SW".
+private struct AccountAvatar: View {
+    var name: String?
+
+    private var initials: String {
+        let parts = (name ?? "").split(separator: " ").prefix(2)
+        let letters = parts.compactMap(\.first).map(String.init).joined()
+        return letters.isEmpty ? "" : letters.uppercased()
+    }
+
+    var body: some View {
+        ZStack {
+            Circle().fill(.tint)
+            if initials.isEmpty {
+                Image(systemName: "person.fill")
+                    .font(.title3)
+                    .foregroundStyle(.white)
+            } else {
+                Text(initials)
+                    .font(.title3.bold())
+                    .foregroundStyle(.white)
+            }
+        }
+        .frame(width: 52, height: 52)
+        .accessibilityHidden(true)
     }
 }
 

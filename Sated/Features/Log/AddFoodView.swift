@@ -40,6 +40,22 @@ struct AddFoodView: View {
         return Nutrients(calories: goals.calories - eaten.calories, protein: goals.protein - eaten.protein, carbs: 0, fat: 0, fiber: goals.fiber - eaten.fiber)
     }
 
+    /// Entries on the day being logged.
+    private var dayEntries: [FoodEntry] {
+        recentEntries.filter { Calendar.current.isDate($0.date, inSameDayAs: router.day) }
+    }
+
+    /// A restaurant BigTable named, as the place it was logged under before (so Your Spots and
+    /// "last time here" count it), else as BigTable named it.
+    private func known(_ place: Place) -> Place {
+        let name = HearthNames.normalized(place.name)
+        guard let earlier = recentEntries
+                .filter({ HearthNames.normalized($0.placeName ?? "") == name })
+                .max(by: { $0.date < $1.date }),
+              let placeName = earlier.placeName else { return place }
+        return Place(id: earlier.placeID ?? placeName, name: placeName, kind: place.kind)
+    }
+
     var body: some View {
         NavigationStack(path: $path) {
             List {
@@ -53,15 +69,25 @@ struct AddFoodView: View {
                     .listRowSeparator(.hidden)
 
                     if query.isEmpty {
-                        // What BigTable planned for this meal, ready to log in a tap.
+                        // What BigTable planned for this meal, ready to log in a tap; or,
+                        // when it planned eating out, that restaurant's menu.
                         if let planned = bigTable.plannedMeal(on: router.day, for: meal),
-                           let estimate = bigTable.estimate(for: planned, database: database) {
-                            PlannedMealCard(meal: planned, estimate: estimate) {
-                                plannedPick = PlannedPick(meal: planned, estimate: estimate)
+                           !planned.isLogged(in: dayEntries) {
+                            if let place = planned.restaurant {
+                                PlannedMealCard(meal: planned, estimate: nil) {
+                                    path.append(EatOutRoute.place(known(place)))
+                                }
+                                .listRowBackground(Color.clear)
+                                .listRowInsets(EdgeInsets())
+                                .listRowSeparator(.hidden)
+                            } else if let estimate = bigTable.estimate(for: planned, database: database) {
+                                PlannedMealCard(meal: planned, estimate: estimate) {
+                                    plannedPick = PlannedPick(meal: planned, estimate: estimate)
+                                }
+                                .listRowBackground(Color.clear)
+                                .listRowInsets(EdgeInsets())
+                                .listRowSeparator(.hidden)
                             }
-                            .listRowBackground(Color.clear)
-                            .listRowInsets(EdgeInsets())
-                            .listRowSeparator(.hidden)
                         }
 
                         QuickActions(
@@ -160,6 +186,11 @@ struct AddFoodView: View {
                 if let preset = router.mealForNextEntry {
                     meal = preset
                     router.mealForNextEntry = nil
+                }
+                // Today's planned "eating out" row: straight to that restaurant's menu.
+                if let place = router.restaurantForNextEntry {
+                    router.restaurantForNextEntry = nil
+                    path = NavigationPath([EatOutRoute.place(known(place))])
                 }
             }
         }

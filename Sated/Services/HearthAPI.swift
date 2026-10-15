@@ -332,6 +332,18 @@ actor HearthAPI {
     /// adopted again.
     nonisolated private static let deadTokenKey = "hearth.deadRefreshToken"
 
+    nonisolated struct SignInStatus: Sendable, Equatable {
+        var isSignedIn: Bool
+        var email: String?
+    }
+
+    /// For the sign-in screen and Settings › Account. Picks up a sign-in or sign-out in another
+    /// Hearth app first.
+    func signInStatus() -> SignInStatus {
+        followSharedSession()
+        return SignInStatus(isSignedIn: isSignedInWithApple, email: isSignedInWithApple ? authSession?.user.email : nil)
+    }
+
     /// True once someone has signed in with Apple, here or in another Hearth app (not an
     /// anonymous session).
     var isSignedInWithApple: Bool {
@@ -473,5 +485,6 @@ enum HearthSignIn {
     static func follow() async {
         guard !ScreenshotMode.isOn else { return }
         await HearthAPI.shared.followSharedSession()
+        await AccountStore.shared.refresh()
     }
 }

@@ -148,3 +148,67 @@ struct RecipeEstimatorTests {
         #expect(BigTableMeals.slot(for: .snack) == nil)
     }
 }
+
+/// Where the servings stepper starts for a BigTable meal.
+struct ServingSuggestionTests {
+    private func suggest(perServing: Double = 500, isRough: Bool = false, meal: Meal = .dinner, goal: Double = 2400, eaten: Double = 0, open: Set<Meal> = Set(Meal.allCases), last: Double? = nil) -> ServingSuggestion {
+        ServingSuggestion.suggest(perServing: perServing, isRough: isRough, meal: meal, goal: goal, eaten: eaten, openMeals: open, lastServings: last)
+    }
+
+    @Test func lastTimeWins() {
+        let result = suggest(last: 1.5)
+        #expect(result.servings == 1.5)
+        #expect(result.reason == .lastTime)
+    }
+
+    @Test func lastTimeIsKeptInRange() {
+        #expect(suggest(last: 8).servings == 3)
+    }
+
+    @Test func dinnerGetsItsShareOfWhatsLeft() {
+        // 1,200 left with only snack and dinner open: dinner gets 35 / 45 of it, about 933 kcal,
+        // which is 1.87 servings of 500, so 1.75.
+        let result = suggest(eaten: 1200, open: [.snack, .dinner])
+        #expect(result.servings == 1.75)
+        if case .fitsDay(let target) = result.reason {
+            #expect(abs(target - 933.33) < 0.1)
+        } else {
+            Issue.record("Expected a day-sized suggestion")
+        }
+    }
+
+    @Test func wholeDayOpenSizesToTheMealShare() {
+        // 2,400 × 35% = 840 kcal; 840 / 600 = 1.4, so 1.5.
+        #expect(suggest(perServing: 600).servings == 1.5)
+    }
+
+    @Test func neverBelowHalf() {
+        #expect(suggest(perServing: 900, eaten: 2200, open: [.dinner]).servings == 0.5)
+    }
+
+    @Test func roughOrNothingLeftIsOneServing() {
+        #expect(suggest(isRough: true) == .one)
+        #expect(suggest(eaten: 2600) == .one)
+        #expect(suggest(perServing: 20) == .one)
+    }
+
+    @Test func explanations() {
+        #expect(suggest(last: 1).explanation(for: .dinner) == "Same as last time.")
+        #expect(ServingSuggestion.one.explanation(for: .dinner) == nil)
+        #expect(suggest(perServing: 600).explanation(for: .dinner) == "Sized to fit the ≈ 840 kcal your day has for dinner.")
+    }
+}
+
+/// Meals BigTable says someone isn't eating stay out of their Sated.
+struct NotEatingTests {
+    private func meal(notEating: [String]?) -> HearthMealPlan.Meal {
+        HearthMealPlan.Meal(slot: "dinner", title: "Tacos", kind: "recipe", notEating: notEating)
+    }
+
+    @Test func eatingUnlessListed() {
+        #expect(BigTableMeals.isEating(meal(notEating: nil), me: "Steve"))
+        #expect(BigTableMeals.isEating(meal(notEating: ["Ava"]), me: "Steve"))
+        #expect(!BigTableMeals.isEating(meal(notEating: ["Ava", " steve "]), me: "Steve"))
+        #expect(BigTableMeals.isEating(meal(notEating: ["Steve"]), me: nil))
+    }
+}

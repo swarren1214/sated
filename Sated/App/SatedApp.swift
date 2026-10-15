@@ -5,6 +5,7 @@ import UIKit
 @main
 struct SatedApp: App {
     @State private var router = AppRouter.shared
+    @State private var account = AccountStore.shared
     @State private var coach: CoachEngine
     private let container: ModelContainer
 
@@ -24,8 +25,12 @@ struct SatedApp: App {
     var body: some Scene {
         WindowGroup {
             AppRoot()
-                .task { await HearthAPI.shared.prepareSession() }
+                .task {
+                    await HearthAPI.shared.prepareSession()
+                    await AccountStore.shared.refresh()
+                }
                 .environment(router)
+                .environment(account)
                 .environment(coach)
                 .environment(FoodDatabase.shared)
                 .environment(HealthService.shared)
@@ -83,6 +88,8 @@ final class AppRouter {
     }
     /// Set when "+" on a meal opens Add Food, so the meal is preselected.
     var mealForNextEntry: Meal?
+    /// Set when Today's planned "eating out" meal opens Add Food at that restaurant's menu.
+    var restaurantForNextEntry: Place?
 
     func addFood(to meal: Meal? = nil) {
         mealForNextEntry = meal
@@ -127,13 +134,22 @@ final class AppRouter {
 struct AppRoot: View {
     @Environment(\.scenePhase) private var scenePhase
     @Environment(HealthService.self) private var health
+    @Environment(AccountStore.self) private var account
     @AppStorage(SettingsKey.accent) private var accent: AccentOption = .orange
     @AppStorage(SettingsKey.appearance) private var appearance: AppearanceOption = .system
 
     var body: some View {
         RootTabView()
             .tint(accent.color)
-            .task {
+            // Sign in with Apple, until signed in or "Not now". Skipped when BigTable or
+            // Suffice already signed in on this iPhone.
+            .fullScreenCover(isPresented: Binding(get: { account.showsSignInScreen }, set: { _ in })) {
+                SignInView()
+                    .tint(accent.color)
+            }
+            // Health's permission sheet waits until the sign-in screen is out of the way.
+            .task(id: account.status == .unknown || account.showsSignInScreen) {
+                guard account.status != .unknown, !account.showsSignInScreen else { return }
                 await health.requestAccess()
                 await health.refreshActiveEnergy()
             }

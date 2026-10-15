@@ -9,27 +9,26 @@ struct PlannedPick: Identifiable {
     var id: String { "\(meal.slot).\(meal.title)" }
 }
 
-/// "From BigTable: Sheet-Pan Fajitas · ≈ 540 kcal a serving", at the top of Add Food when
-/// BigTable planned the selected meal. Tapping it picks servings before logging.
+/// "From BigTable: Sheet-Pan Fajitas · ≈ 540 kcal a serving", with the recipe's photo, at the
+/// top of Add Food when BigTable planned the selected meal. Tapping it picks servings before
+/// logging. When BigTable planned eating out, it shows the restaurant's logo and opens its menu.
 struct PlannedMealCard: View {
     var meal: HearthMealPlan.Meal
-    var estimate: MealEstimate
+    /// Nil when eating out.
+    var estimate: MealEstimate?
     var action: () -> Void
 
     var body: some View {
         Button(action: action) {
             HStack(spacing: 12) {
-                Image(systemName: "fork.knife")
-                    .font(.body.weight(.semibold))
-                    .foregroundStyle(BigTableMeals.color)
-                    .frame(width: 44, height: 44)
-                    .background(BigTableMeals.color.opacity(0.15), in: .rect(cornerRadius: 12))
+                PlannedMealArtwork(meal: meal, cornerRadius: 14)
+                    .frame(width: 60, height: 60)
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("From BigTable")
+                    Text(meal.isDineOut ? "Eating Out · BigTable" : "From BigTable")
                         .font(.caption.weight(.semibold))
                         .foregroundStyle(.secondary)
                         .textCase(.uppercase)
-                    Text(meal.title)
+                    Text(meal.displayTitle)
                         .font(.headline)
                         .foregroundStyle(.primary)
                         .lineLimit(2)
@@ -44,24 +43,26 @@ struct PlannedMealCard: View {
                     .font(.footnote.weight(.semibold))
                     .foregroundStyle(.tertiary)
             }
-            .padding(14)
+            .padding(12)
             .background(Color(.secondarySystemGroupedBackground), in: .rect(cornerRadius: 20))
             .contentShape(.rect(cornerRadius: 20))
         }
         .buttonStyle(.plain)
         .padding(.bottom, 4)
-        .accessibilityHint("Choose servings and log it")
+        .accessibilityHint(meal.isDineOut ? "Opens the menu" : "Choose servings and log it")
     }
 
-    /// "≈ 540 kcal a serving", or "Rough ≈ 540 kcal a serving" when few ingredients matched.
+    /// "≈ 540 kcal a serving", "Rough ≈ 540 kcal a serving", or "See the menu".
     private var detail: String {
+        guard let estimate else { return "See the menu" }
         let calories = "≈ \(Int(estimate.perServing.calories.rounded())) kcal a serving"
         return estimate.isRough ? "Rough \(calories)" : calories
     }
 }
 
 /// Servings and meal for a planned meal, then Add. Logged as one entry named after the meal,
-/// with the estimate per serving, like a restaurant estimate.
+/// with the estimate per serving, like a restaurant estimate. Servings start at a suggestion
+/// (`ServingSuggestion`): last time's, or a portion that fits what's left of the day.
 struct PlannedMealSheet: View {
     let pick: PlannedPick
     var onAdded: () -> Void
@@ -69,8 +70,12 @@ struct PlannedMealSheet: View {
     @Environment(\.modelContext) private var context
     @Environment(\.dismiss) private var dismiss
     @Environment(\.openURL) private var openURL
+    @Environment(AppRouter.self) private var router
     @State private var servings: Double = 1
     @State private var meal: Meal
+    @State private var suggestion: ServingSuggestion?
+    /// The meal the suggestion was worked out for.
+    @State private var suggestedFor: Meal?
 
     init(pick: PlannedPick, meal: Meal, onAdded: @escaping () -> Void) {
         self.pick = pick
@@ -84,17 +89,30 @@ struct PlannedMealSheet: View {
     var body: some View {
         NavigationStack {
             Form {
+                if pick.meal.artworkURL != nil {
+                    Section {
+                        PlannedMealArtwork(meal: pick.meal, cornerRadius: 0)
+                            .frame(height: 170)
+                            .frame(maxWidth: .infinity)
+                            .listRowInsets(EdgeInsets())
+                    }
+                }
                 Section {
-                    Stepper(value: $servings, in: 0.5...6, step: 0.5) {
+                    Stepper(value: $servings, in: 0.25...6, step: ServingSuggestion.step) {
                         LabeledContent("Servings") {
                             Text(servings.formatted(.number.precision(.fractionLength(0...2))))
                                 .fontWeight(.semibold)
                                 .foregroundStyle(.primary)
                                 .monospacedDigit()
+                                .contentTransition(.numericText())
                         }
                     }
                     Picker("Meal", selection: $meal) {
                         ForEach(Meal.allCases) { Text($0.name).tag($0) }
+                    }
+                } footer: {
+                    if let text = suggestionText {
+                        Text(text)
                     }
                 }
                 Section {
@@ -113,7 +131,7 @@ struct PlannedMealSheet: View {
                         Text(servingsText(recipe))
                     }
                 }
-                if let url = pick.meal.link.flatMap({ URL(string: $0) }) {
+                if let url = pick.meal.openURL {
                     Section {
                         Button("Open in BigTable", systemImage: "arrow.up.forward.app") { openURL(url) }
                     }
@@ -139,8 +157,42 @@ struct PlannedMealSheet: View {
                 .padding(.bottom, 8)
             }
             .animation(.snappy, value: servings)
+            .task {
+                guard suggestion == nil else { return }
+                let suggested = suggest()
+                suggestion = suggested
+                suggestedFor = meal
+                servings = suggested.servings
+            }
         }
         .presentationDetents([.medium, .large])
+    }
+
+    /// Why the stepper started where it did, until they change it.
+    private var suggestionText: String? {
+        guard let suggestion, let suggestedFor, suggestedFor == meal, suggestion.servings == servings else { return nil }
+        return suggestion.explanation(for: suggestedFor)
+    }
+
+    /// Last time's servings for this meal, or a portion that fits the rest of the day.
+    private func suggest() -> ServingSuggestion {
+        let foodID = pick.meal.foodID
+        var last = FetchDescriptor<FoodEntry>(
+            predicate: #Predicate { $0.foodID == foodID },
+            sortBy: [SortDescriptor(\.date, order: .reverse)]
+        )
+        last.fetchLimit = 1
+        let lastServings = (try? context.fetch(last))?.first?.servings
+        let day = Persistence.entries(from: router.day, through: router.day, in: context)
+        return ServingSuggestion.suggest(
+            perServing: estimate.perServing.calories,
+            isRough: estimate.isRough,
+            meal: meal,
+            goal: Goals.load().calories,
+            eaten: day.reduce(0) { $0 + $1.nutrients.calories },
+            openMeals: Set(Meal.allCases).subtracting(day.map(\.meal)),
+            lastServings: lastServings
+        )
     }
 
     /// How much to trust the numbers.
@@ -162,7 +214,7 @@ struct PlannedMealSheet: View {
     private func add() {
         let food = FoodItem(
             // The same meal logged again files under one Recent item.
-            id: "bigtable.\(pick.meal.recipeIDs?.joined(separator: "+") ?? pick.meal.title.lowercased())",
+            id: pick.meal.foodID,
             name: pick.meal.title,
             brand: "BigTable",
             serving: "1 serving",

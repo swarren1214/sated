@@ -90,6 +90,9 @@ private struct DayLog: View {
     @Query private var entries: [FoodEntry]
     @Environment(AppRouter.self) private var router
     @Environment(HealthService.self) private var health
+    @Environment(FoodDatabase.self) private var database
+    @State private var bigTable = BigTableMeals.shared
+    @State private var plannedPick: PlannedPick?
     @AppStorage(SettingsKey.goalCalories) private var goalCalories = Goals.defaults.calories
     @AppStorage(SettingsKey.goalProtein) private var goalProtein = Goals.defaults.protein
     @AppStorage(SettingsKey.goalCarbs) private var goalCarbs = Goals.defaults.carbs
@@ -138,6 +141,33 @@ private struct DayLog: View {
             .padding(.bottom, 24)
         }
         .background(Color(.systemGroupedBackground))
+        .onAppear {
+            // BigTable's plan shows on empty meals; follow it from here on.
+            bigTable.start()
+            bigTable.reload()
+        }
+        .sheet(item: $plannedPick) { pick in
+            PlannedMealSheet(pick: pick, meal: Meal(rawValue: pick.meal.slot) ?? .dinner) {}
+        }
+    }
+
+    /// What BigTable planned for an empty meal, and its estimate when it has recipes.
+    private func plan(for meal: Meal, entries: [FoodEntry]) -> (meal: HearthMealPlan.Meal, estimate: MealEstimate?)? {
+        guard entries.isEmpty, let planned = bigTable.plannedMeal(on: day, for: meal),
+              !planned.isLogged(in: self.entries) else { return nil }
+        return (planned, planned.isDineOut ? nil : bigTable.estimate(for: planned, database: database))
+    }
+
+    /// Log the planned meal: servings first, or the restaurant's menu when eating out.
+    private func logPlanned(_ planned: HearthMealPlan.Meal, estimate: MealEstimate?, as meal: Meal) {
+        if let estimate {
+            plannedPick = PlannedPick(meal: planned, estimate: estimate)
+        } else if let place = planned.restaurant {
+            router.restaurantForNextEntry = place
+            router.addFood(to: meal)
+        } else {
+            router.addFood(to: meal)
+        }
     }
 
     @ViewBuilder
@@ -168,7 +198,13 @@ private struct DayLog: View {
             VStack(spacing: 0) {
                 ForEach(Meal.allCases) { meal in
                     let items = entries.filter { $0.meal == meal }
-                    MealRow(meal: meal, entries: items, day: day)
+                    if let planned = plan(for: meal, entries: items) {
+                        PlannedMealRow(meal: meal, planned: planned.meal, estimate: planned.estimate) {
+                            logPlanned(planned.meal, estimate: planned.estimate, as: meal)
+                        }
+                    } else {
+                        MealRow(meal: meal, entries: items, day: day)
+                    }
                     if meal != Meal.allCases.last {
                         Divider().padding(.leading, 62)
                     }
@@ -321,6 +357,64 @@ private struct MealRow: View {
     private var subtitle: String {
         guard let first = entries.first else { return "Not logged yet" }
         return "\(first.date.formatted(date: .omitted, time: .shortened)) · " + entries.map(\.name).joined(separator: ", ")
+    }
+}
+
+/// An empty meal BigTable planned: its photo, "Dinner", and "Sheet-Pan Fajitas · ≈ 540 kcal".
+/// The row logs the planned meal; the plus adds something else.
+private struct PlannedMealRow: View {
+    var meal: Meal
+    var planned: HearthMealPlan.Meal
+    var estimate: MealEstimate?
+    var log: () -> Void
+    @Environment(AppRouter.self) private var router
+
+    var body: some View {
+        HStack(spacing: 12) {
+            Button(action: log) {
+                HStack(spacing: 12) {
+                    PlannedMealArtwork(meal: planned, cornerRadius: 10)
+                        .frame(width: 38, height: 38)
+                    VStack(alignment: .leading, spacing: 2) {
+                        HStack(spacing: 6) {
+                            Text(meal.name)
+                            Text("BigTable")
+                                .font(.caption2.weight(.semibold))
+                                .foregroundStyle(BigTableMeals.color)
+                                .padding(.horizontal, 6)
+                                .padding(.vertical, 2)
+                                .background(BigTableMeals.color.opacity(0.14), in: Capsule())
+                        }
+                        Text(subtitle)
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                    }
+                    Spacer(minLength: 4)
+                }
+                .contentShape(.rect)
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("\(meal.name), planned in BigTable: \(planned.displayTitle)")
+            .accessibilityHint(planned.isDineOut ? "Opens the menu" : "Log it")
+
+            Button { router.addFood(to: meal) } label: {
+                Image(systemName: "plus.circle.fill")
+                    .font(.system(size: 28))
+                    .foregroundStyle(.tint)
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Add something else to \(meal.name)")
+        }
+        .padding(.vertical, 12)
+        .padding(.horizontal, 16)
+    }
+
+    /// "Sheet-Pan Fajitas · ≈ 540 kcal", or "Eating out · Café Rio".
+    private var subtitle: String {
+        if planned.isDineOut { return "Eating out · \(planned.displayTitle)" }
+        guard let estimate else { return planned.title }
+        return "\(planned.title) · ≈ \(Int(estimate.perServing.calories.rounded())) kcal"
     }
 }
 

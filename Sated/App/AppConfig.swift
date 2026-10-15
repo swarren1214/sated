@@ -8,6 +8,10 @@ enum AppConfig {
     static let cloudSyncEnabled = true
     static let cloudKitContainerID = "iCloud.com.stephenwarren.sated"
 
+    /// When true, the sign-in screen has no "Not now". Off because App Review (guideline
+    /// 5.1.1(v)) expects apps without account-based features to work without signing in.
+    static let requiresSignIn = false
+
     nonisolated static let apiBaseURL = URL(string: "https://api.hearthapps.com")!
     nonisolated static let supabaseURL = URL(string: "https://kvhvsztvfpydhfpzicyy.supabase.co")!
     nonisolated static let supabasePublishableKey = "sb_publishable_j0eyoaQiN3fogFINKooaDA_V0yjXkgY"

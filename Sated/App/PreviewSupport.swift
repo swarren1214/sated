@@ -22,6 +22,7 @@ private struct PreviewEnvironment: ViewModifier {
             .environment(CoachEngine(data: CoachData(container: container, database: .shared)))
             .environment(FoodDatabase.shared)
             .environment(HealthService.shared)
+            .environment(AccountStore.shared)
             .modelContainer(container)
             .tint(AccentOption.orange.color)
     }

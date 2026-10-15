@@ -262,16 +262,31 @@ suggested plates always go to today.
 
 ## Planned meals from BigTable
 
-When BigTable (the Hearth meal planner) is on the same iPhone, Add Food shows its planned meal
-for the selected day and meal at the top: "From BigTable", the meal's title and about how many
-calories a serving is. Tapping it picks servings and the meal, then logs one entry named after
-the meal with the estimated macros (source "Estimate", brand "BigTable"). Snacks have no
-BigTable slot, and meals BigTable shares without recipes (eating out, leftovers) aren't shown.
+When BigTable (the Hearth meal planner) is on the same iPhone, its plan shows in two places:
+
+- **Today**: an empty breakfast, lunch or dinner shows what BigTable planned, with the recipe's
+  photo (or the restaurant's logo) and about how many calories a serving has. Tapping the row
+  logs it; the plus adds something else.
+- **Add Food**: the same meal as a card at the top for the selected day and meal.
+
+Logging a planned meal opens a sheet with the photo, servings, macros and the ingredient
+matches, and logs one entry named after the meal (source "Estimate", brand "BigTable").
+Servings start at a suggestion you can change (`Services/Hearth/ServingSuggestion.swift`): last
+time's servings for the same meal, else a portion sized to the meal's share of what's left of
+the day (breakfast 25%, lunch 30%, dinner 35%, snack 10%, split across the meals still open),
+to the nearest quarter between ½ and 3; one serving when the estimate is rough. When BigTable
+planned eating out, the row and card open that restaurant's menu in Eat Out. Meals BigTable
+says this person isn't eating (its "not eating" list, matched to the household member marked
+as them) aren't shown. Snacks have no BigTable slot.
+
+Photos and logos are the https URLs BigTable shares in the plan (`imageURL`, `logoURL`), loaded
+with `AsyncImage` like Caloma (`Features/Log/PlannedMealArtwork.swift`); without one, or
+offline, BigTable's fork and knife on its red.
 
 - **Sharing**: the main app has the `group.com.stephenwarren.hearth` app group and reads
   BigTable's `meal-plan` file through `Services/Hearth/HearthShared.swift` (synced from
   `~/Developer/hearthkit`, don't edit it here). `Services/Hearth/BigTableMeals.swift` reads the
-  plan when Add Food appears and follows `Hearth.didChange`; plans older than two weeks are
+  plan when Today or Add Food appears and follows `Hearth.didChange`; plans older than two weeks are
   ignored. Off in screenshot mode.
 - **Estimating**, all on the device (`Services/Hearth/RecipeEstimator.swift`): each ingredient
   is matched to a bundled USDA food. Names are cleaned of prep words ("diced", "shredded") and a
@@ -352,6 +367,17 @@ Sated silently creates and refreshes an anonymous Supabase session in the Keycha
 (`Services/HearthAPI.swift`), then uses its bearer token for the shared Hearth API
 through `Services/API/APIClient.swift`. The app remains usable offline and does not upload
 food logs, health data, or coach conversations.
+
+**Sign in with Apple.** On first launch Sated shows a sign-in screen (`Features/Account/SignInView.swift`)
+with Sign in with Apple and "Not now"; someone already signed in to BigTable or Suffice on this
+iPhone skips it. Settings › Account shows who's signed in and Sign Out (which signs out of every
+Hearth app on the device; the food log isn't touched), or the Sign in with Apple button when
+signed out. `AccountStore` (`Services/Account.swift`) mirrors `HearthAPI`'s session for the UI,
+and signs out if the Apple ID is disconnected from the app. Set `AppConfig.requiresSignIn` to
+remove "Not now" (App Review guideline 5.1.1(v) expects the app to work without an account).
+Needs the Sign in with Apple capability (in `Sated.entitlements`) and `com.stephenwarren.sated`
+in the Supabase Apple provider's Client IDs. Before App Store submission, App Review also requires
+in-app account deletion.
 
 **One sign-in for every Hearth app.** BigTable, Suffice and Sated use the same Supabase project.
 When someone has signed in with Apple in BigTable or Suffice, Sated adopts that shared session

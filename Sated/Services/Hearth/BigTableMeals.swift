@@ -11,6 +11,8 @@ final class BigTableMeals {
 
     /// BigTable's plan, when BigTable is on this device and has shared one recently.
     private(set) var plan: HearthMealPlan?
+    /// This person's name in BigTable's household, to leave out meals they're not eating.
+    private(set) var myName: String?
 
     /// BigTable's red, as a small accent on its meals.
     static let color = Color(hex: 0xD9472B)
@@ -33,6 +35,9 @@ final class BigTableMeals {
     /// was deleted, or signed out without cleaning up) isn't shown.
     func reload() {
         guard !ScreenshotMode.isOn else { return }
+        let family = Hearth.read(HearthFamily.self, from: .bigtable)?.value
+        let me = family?.me.flatMap { id in family?.members.first { $0.id == id }?.name }
+        if me != myName { myName = me }
         let latest = Hearth.read(HearthMealPlan.self, from: .bigtable, maxAge: 14 * 24 * 60 * 60)?.value
         if latest != plan {
             plan = latest
@@ -50,10 +55,18 @@ final class BigTableMeals {
         }
     }
 
-    /// What BigTable planned for this meal on this day, if anything.
+    /// What BigTable planned for this meal on this day, if anything, unless BigTable says
+    /// this person isn't eating it.
     func plannedMeal(on day: Date, for meal: Meal) -> HearthMealPlan.Meal? {
-        guard let slot = Self.slot(for: meal) else { return nil }
-        return plan?.meal(slot, on: day)
+        guard let slot = Self.slot(for: meal), let planned = plan?.meal(slot, on: day) else { return nil }
+        return Self.isEating(planned, me: myName) ? planned : nil
+    }
+
+    /// False when BigTable lists this person among those not eating the meal.
+    nonisolated static func isEating(_ meal: HearthMealPlan.Meal, me: String?) -> Bool {
+        guard let me, let notEating = meal.notEating, !notEating.isEmpty else { return true }
+        let key = HearthNames.normalized(me)
+        return !notEating.contains { HearthNames.normalized($0) == key }
     }
 
     /// One serving of a planned meal, estimated from its recipes. Nil until the bundled foods
