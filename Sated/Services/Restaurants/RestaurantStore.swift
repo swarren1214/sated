@@ -78,6 +78,10 @@ actor RestaurantStore {
     /// The place's menu: fresh from the API, or the saved copy when the network fails.
     /// Throws only when there's no saved copy to fall back on.
     func menu(for name: String) async throws -> MenuResult {
+        // Screenshot mode (Debug): the demo menu, never the network.
+        if ScreenshotMode.isOn {
+            return MenuResult(menu: ScreenshotMode.menu(for: name), savedAt: now())
+        }
         let key = Self.key(name)
         let task: Task<RestaurantMenu, Error>
         if let running = inFlight[key] {

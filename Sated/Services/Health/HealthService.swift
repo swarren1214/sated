@@ -33,7 +33,8 @@ final class HealthService {
 
     /// Shows the Health permission sheet the first time; afterwards it returns at once.
     func requestAccess() async {
-        guard isAvailable else { return }
+        // Screenshot mode (Debug): no Health permission sheet.
+        guard !ScreenshotMode.isOn, isAvailable else { return }
         do {
             try await store.requestAuthorization(toShare: writeTypes, read: readTypes)
         } catch {
@@ -89,6 +90,11 @@ final class HealthService {
     /// Reads today's active energy. Health never says whether reading is allowed; a denied read
     /// just comes back empty, which shows as no value.
     func refreshActiveEnergy(calendar: Calendar = .current) async {
+        // Screenshot mode (Debug): an afternoon's active energy, without reading Health.
+        if ScreenshotMode.isOn {
+            activeEnergyToday = 418
+            return
+        }
         guard isAvailable, UserDefaults.standard.object(forKey: SettingsKey.readActiveEnergy) as? Bool ?? true else {
             activeEnergyToday = nil
             return

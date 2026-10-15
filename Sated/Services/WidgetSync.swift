@@ -41,6 +41,13 @@ enum WidgetSync {
         }
     }
 
+    /// Writes the snapshot now instead of after the short wait. For Siri, which may be
+    /// suspended right after it logs.
+    static func refreshNow() {
+        pending?.cancel()
+        write()
+    }
+
     private static func write() {
         guard let container, let url = WidgetSnapshot.url else { return }
         do {

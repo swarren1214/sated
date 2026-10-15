@@ -23,7 +23,24 @@ final class ConversationAudio {
     private var isStarting = false
     /// Microphone audio goes here, on the audio thread.
     private let sink = OSAllocatedUnfairLock<(@Sendable (AVAudioPCMBuffer) -> Void)?>(initialState: nil)
+    /// Microphone buffers received since the engine last started, to notice a silent microphone.
+    private let buffersSeen = OSAllocatedUnfairLock(initialState: 0)
+    private var configurationObserver: NSObjectProtocol?
+    private var watchdog: Task<Void, Never>?
+    /// Called when the microphone can't be brought back after an interruption.
+    var onFailure: (() -> Void)?
     private let log = Logger(subsystem: "com.stephenwarren.sated", category: "conversation")
+
+    init() {
+        // Switching the hardware into voice mode (usually on the first conversation after
+        // launch) reconfigures it a moment after the engine starts. The engine stops itself
+        // when that happens, leaving the microphone silent, so start it again.
+        configurationObserver = NotificationCenter.default.addObserver(
+            forName: .AVAudioEngineConfigurationChange, object: engine, queue: .main
+        ) { [weak self] _ in
+            MainActor.assumeIsolated { self?.restart(reason: "configuration change") }
+        }
+    }
 
     /// Opens the microphone and Coach's voice. `input` receives microphone audio on a
     /// background thread.
@@ -50,24 +67,73 @@ final class ConversationAudio {
             engine.connect(player, to: engine.mainMixerNode, format: format)
             attached = true
         }
-        let sink = self.sink
-        microphone.removeTap(onBus: 0)
-        Self.installTap(on: microphone) { buffer in
-            sink.withLock { $0 }?(buffer)
-        }
-        engine.prepare()
         do {
-            try engine.start()
+            try startEngine()
         } catch {
             microphone.removeTap(onBus: 0)
             AudioSessionControl.deactivate()
             throw error
         }
         isRunning = true
+        watchForSilence()
+    }
+
+    /// Installs the microphone tap with the input's current format and starts the engine.
+    private func startEngine() throws {
+        let microphone = engine.inputNode
+        let sink = self.sink
+        let seen = buffersSeen
+        seen.withLock { $0 = 0 }
+        microphone.removeTap(onBus: 0)
+        Self.installTap(on: microphone) { buffer in
+            seen.withLock { $0 += 1 }
+            sink.withLock { $0 }?(buffer)
+        }
+        engine.prepare()
+        try engine.start()
+    }
+
+    /// Brings the microphone back after the hardware changed under it.
+    private func restart(reason: String) {
+        guard isRunning, !isStarting else { return }
+        log.notice("Restarting the microphone: \(reason, privacy: .public)")
+        if engine.isRunning { engine.stop() }
+        do {
+            try startEngine()
+            watchForSilence()
+        } catch {
+            log.error("Couldn't restart the microphone: \(error.localizedDescription, privacy: .public)")
+            onFailure?()
+        }
+    }
+
+    /// If no microphone audio arrives soon after starting, start again once.
+    private func watchForSilence(retry: Bool = true) {
+        watchdog?.cancel()
+        watchdog = Task { [weak self] in
+            try? await Task.sleep(for: .milliseconds(1200))
+            guard !Task.isCancelled, let self, self.isRunning else { return }
+            guard self.buffersSeen.withLock({ $0 }) == 0 else { return }
+            if retry {
+                self.log.notice("No microphone audio yet; restarting")
+                if self.engine.isRunning { self.engine.stop() }
+                do {
+                    try self.startEngine()
+                    self.watchForSilence(retry: false)
+                } catch {
+                    self.onFailure?()
+                }
+            } else {
+                self.log.error("The microphone is still silent after a restart")
+                self.onFailure?()
+            }
+        }
     }
 
     func stop() {
         sink.withLock { $0 = nil }
+        watchdog?.cancel()
+        watchdog = nil
         guard isRunning else { return }
         player.stop()
         engine.inputNode.removeTap(onBus: 0)
@@ -183,6 +249,11 @@ final class CoachConversation {
             return
         }
         ConversationLevel.onLevel = { [weak self] level in self?.level = level }
+        audio.onFailure = { [weak self] in
+            guard let self else { return }
+            self.stop()
+            self.phase = .failed(VoiceMessages.unavailable)
+        }
         transcript = ""
         lastHeard = .now
         phase = .listening

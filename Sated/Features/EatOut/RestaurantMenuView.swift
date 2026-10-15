@@ -166,6 +166,13 @@ struct RestaurantMenuView: View {
         .navigationBarTitleDisplayMode(.inline)
         .refreshable { await load(force: true) }
         .animation(.snappy, value: category)
+        // Screenshot mode (Debug): a bowl and a side already on the plate.
+        .task {
+            guard ScreenshotMode.isOn, plate.isEmpty else { return }
+            plate = result.menu.items
+                .filter { ScreenshotMode.plateItemIDs.contains($0.id) }
+                .compactMap { item in item.defaultServing.map { PlateLine(item: item, serving: $0, quantity: 1) } }
+        }
         .sheet(item: $selected) { item in
             MenuItemSheet(item: item, restaurant: restaurant, meal: meal, place: place.ref, onPlate: { line in
                 withAnimation(.snappy) { plate.append(line) }

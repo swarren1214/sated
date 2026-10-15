@@ -32,11 +32,13 @@ enum OnDeviceModel {
     }
 
     static var availability: Availability {
+        // Screenshot mode (Debug): Coach shows, whatever the simulator supports.
+        if ScreenshotMode.isOn { return .available }
         switch SystemLanguageModel.default.availability {
-        case .available: .available
-        case .unavailable(.appleIntelligenceNotEnabled): .notEnabled
-        case .unavailable(.modelNotReady): .notReady
-        case .unavailable: .unsupported
+        case .available: return .available
+        case .unavailable(.appleIntelligenceNotEnabled): return .notEnabled
+        case .unavailable(.modelNotReady): return .notReady
+        case .unavailable: return .unsupported
         }
     }
 

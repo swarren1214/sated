@@ -7,6 +7,11 @@ enum Persistence {
 
     private static let log = Logger(subsystem: "com.stephenwarren.sated", category: "persistence")
 
+    /// The app's one store. The app, Siri and the Watch bridge all use it, so there's never a
+    /// second container syncing the same file.
+    /// Screenshot mode (Debug only) runs on an in-memory store of demo meals.
+    static let shared = makeContainer(inMemory: ScreenshotMode.isOn)
+
     static func makeContainer(inMemory: Bool = false) -> ModelContainer {
         // Previews and tests use an in-memory store and never touch iCloud.
         let syncs = AppConfig.cloudSyncEnabled && !inMemory

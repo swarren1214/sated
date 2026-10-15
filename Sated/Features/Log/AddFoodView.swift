@@ -153,6 +153,30 @@ struct AddFoodView: View {
                 query = ""
             }
         }
+        // Screenshot mode (Debug): the keyboard put away, and the requested screen pushed.
+        .task {
+            guard ScreenshotMode.isOn else { return }
+            try? await Task.sleep(for: .milliseconds(600))
+            UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+            switch ScreenshotMode.screen {
+            case .food?:
+                meal = .dinner
+                for _ in 0..<50 where !database.isLoaded {
+                    try? await Task.sleep(for: .milliseconds(100))
+                }
+                if let food = database.food(id: ScreenshotSeed.detailFoodID) { path.append(food) }
+            case .eatout?:
+                path.append(EatOutRoute.restaurants)
+            case .menu?:
+                meal = .lunch
+                path.append(EatOutRoute.place(ScreenshotMode.harvest))
+            case .estimate?:
+                meal = .dinner
+                path.append(EatOutRoute.estimate(ScreenshotMode.nonna))
+            default:
+                break
+            }
+        }
     }
 }
 

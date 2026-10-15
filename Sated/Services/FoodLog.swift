@@ -24,11 +24,31 @@ enum FoodLog {
         return entry
     }
 
-    /// Saves a ready-made entry and copies it to Apple Health. Used for entries made elsewhere,
+    /// Logs a food from the Watch or Siri (a usual, or a match for something said).
+    @discardableResult
+    static func add(_ food: WatchFood, meal: Meal, date: Date = .now, saveToHealth: Bool = true, in context: ModelContext) -> FoodEntry {
+        let entry = FoodEntry(
+            date: date,
+            meal: meal,
+            name: food.name,
+            brand: food.brand,
+            servingLabel: food.serving,
+            servings: food.servings,
+            perServing: food.nutrients,
+            source: FoodSource(rawValue: food.source) ?? .quickAdd,
+            foodID: food.foodID,
+            place: food.place
+        )
+        insert(entry, saveToHealth: saveToHealth, in: context)
+        return entry
+    }
+
+    /// Saves a ready-made entry and copies it to Apple Health (unless the caller will). Used for entries made elsewhere,
     /// like the Watch, that don't start from a `FoodItem`.
-    static func insert(_ entry: FoodEntry, in context: ModelContext) {
+    static func insert(_ entry: FoodEntry, saveToHealth: Bool = true, in context: ModelContext) {
         context.insert(entry)
         try? context.save()
+        guard saveToHealth else { return }
         let record = entry.record
         Task { await HealthService.shared.save(record) }
     }

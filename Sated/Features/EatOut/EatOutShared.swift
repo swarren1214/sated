@@ -35,6 +35,8 @@ final class NearbyPlaces {
 
     /// Looks again unless the last look was recent. `force` always looks again.
     func refresh(force: Bool = false) async {
+        // Screenshot mode (Debug): the demo places stay; location is never asked for.
+        if ScreenshotMode.isOn { return }
         if !force, let loadedAt, Date.now.timeIntervalSince(loadedAt) < 120, phase == .loaded { return }
         if let loading { return await loading.value }
         let task = Task { await load() }
@@ -84,6 +86,17 @@ final class NearbyPlaces {
     func note(_ name: String, _ answer: LookupAnswer) {
         hasMenu[name] = answer.hasMenu
         if answer.hasMenu, let restaurant = answer.restaurant { chains[name] = restaurant }
+    }
+}
+
+extension NearbyPlaces {
+    /// Screenshot mode (Debug): demo places around a demo location, set by `ScreenshotSeed`.
+    func showScreenshotPlaces(_ places: [Place], here: Place?, hasMenu: [String: Bool]) {
+        self.places = places
+        self.here = here
+        self.hasMenu = hasMenu
+        loadedAt = .now
+        phase = .loaded
     }
 }
 

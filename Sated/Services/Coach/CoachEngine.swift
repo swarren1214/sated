@@ -174,7 +174,8 @@ final class CoachEngine {
     """
 
     func prewarm() {
-        guard availability == .available, session == nil else { return }
+        // Screenshot mode (Debug) shows a demo conversation and never starts the model.
+        guard !ScreenshotMode.isOn, availability == .available, session == nil else { return }
         let session = makeSession()
         session.prewarm()
         self.session = session
@@ -250,5 +251,12 @@ final class CoachEngine {
     func reset() {
         messages = []
         session = nil
+    }
+}
+
+extension CoachEngine {
+    /// Screenshot mode (Debug): a finished conversation to show, from `ScreenshotSeed`.
+    func showScreenshotConversation(_ messages: [CoachMessage]) {
+        self.messages = messages
     }
 }

@@ -9,7 +9,8 @@ struct SatedApp: App {
     private let container: ModelContainer
 
     init() {
-        let container = Persistence.makeContainer()
+        ScreenshotMode.prepareLaunch()
+        let container = Persistence.shared
         self.container = container
         _coach = State(initialValue: CoachEngine(data: CoachData(container: container, database: .shared)))
         // Alerts use the system label color rather than the accent. Destructive buttons stay red.

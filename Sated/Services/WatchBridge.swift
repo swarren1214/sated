@@ -45,6 +45,13 @@ final class WatchBridge: NSObject {
         }
     }
 
+    /// Sends the Watch the latest now, without the usual short wait. For Siri, which may be
+    /// suspended right after it logs.
+    func refreshNow() {
+        pending?.cancel()
+        push()
+    }
+
     private func push(force: Bool = false) {
         let session = WCSession.default
         guard let container, session.activationState == .activated, session.isPaired, session.isWatchAppInstalled else { return }
@@ -63,12 +70,7 @@ final class WatchBridge: NSObject {
 
     func makeSnapshot(context: ModelContext, now: Date = .now, calendar: Calendar = .current) -> WatchSnapshot {
         let today = WidgetSync.makeSnapshot(context: context, now: now, calendar: calendar)
-        let since = calendar.date(byAdding: .day, value: -Usuals.lookback, to: calendar.startOfDay(for: now)) ?? now
-        let descriptor = FetchDescriptor<FoodEntry>(predicate: #Predicate { $0.date >= since })
-        let logged = ((try? context.fetch(descriptor)) ?? []).map {
-            Usuals.Logged(date: $0.date, meal: $0.meal, food: WatchFood(entry: $0))
-        }
-        let usuals = Usuals.rank(logged, now: now, calendar: calendar)
+        let usuals = Usuals.current(in: context, now: now, calendar: calendar)
         return WatchSnapshot(
             day: today.day,
             calories: today.calories,
@@ -104,19 +106,7 @@ final class WatchBridge: NSObject {
         let context = container.mainContext
         let meal = Meal(rawValue: request.meal) ?? .suggested(for: request.date)
         for food in request.foods where food.servings > 0 {
-            let entry = FoodEntry(
-                date: request.date,
-                meal: meal,
-                name: food.name,
-                brand: food.brand,
-                servingLabel: food.serving,
-                servings: food.servings,
-                perServing: food.nutrients,
-                source: FoodSource(rawValue: food.source) ?? .quickAdd,
-                foodID: food.foodID,
-                place: food.place
-            )
-            FoodLog.insert(entry, in: context)
+            FoodLog.add(food, meal: meal, date: request.date, in: context)
         }
         appliedIDs.append(request.id)
         log.info("Filed \(request.foods.count) foods from the Watch")

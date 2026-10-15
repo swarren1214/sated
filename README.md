@@ -187,6 +187,25 @@ are topped up with overall favorites.
 To run it: select the **SatedWatch** scheme with a paired Watch simulator or device. The
 bundle ID is `com.stephenwarren.sated.watchkitapp`, under the app's own.
 
+## Siri and Shortcuts
+
+App Intents in `Sated/Intents/`. All but Open Add Food run without opening the app. The two
+logging actions ask you to unlock first, because Apple Health can't be written while the
+phone is locked.
+
+| Say | What happens |
+|---|---|
+| "Log my usual breakfast in Sated" | Logs that meal's usual. With several, Siri asks which. Leave out the meal for the one it is now. |
+| "Log food in Sated" | Siri asks what you ate, parses it like Say It (a database search without Apple Intelligence), reads it back to confirm, then logs it. |
+| "How many calories do I have left in Sated" | Speaks calories left and protein to go. Also returns the number for Shortcuts. |
+| "Add food in Sated" | Opens Add Food. Good for the Action button. |
+
+`SatedIntents.swift` holds the intents (they only collect parameters and speak);
+`IntentActions.swift` does the work on the main actor with the shared store
+(`Persistence.shared`), then refreshes the widgets and the Watch right away, since Siri may
+suspend the app a moment later. Usual foods are an `AppEntity`, so they also appear as
+suggestions in Shortcuts and Spotlight.
+
 ## Eating out
 
 Add Food › **Eat Out** (the green tile), or the **You're at…** card that appears on Add Food
@@ -279,6 +298,7 @@ Sated/
                   Voice (dictation, Kokoro, spoken replies), LifestyleAPI and API
                   (shared identity, client), Restaurants (menus, places, history),
                   WatchBridge and Usuals (Apple Watch)
+  Intents/        Siri and Shortcuts (App Intents)
 SatedWatch/       The Watch app: today, usuals, Say It
 Shared/           Types built into the app, widgets and Watch (snapshots, Meal, Watch payloads)
 Packages/         KokoroSwift and MisakiSwift (vendored from Hearken)
@@ -291,8 +311,7 @@ scripts/          build_foods.py (USDA import)
 - Offline barcodes: USDA's branded foods (~400,000, with UPCs) as an optional download, like the voice.
 - Let people name and save scanned-label foods as favorites.
 - Turn on CloudKit sync; sync goals through iCloud key-value storage.
-- App Intents ("Log my usual breakfast"), a Control Center "Log Food" control, and the
-  Action button. Usuals already exist for this (`Services/Usuals.swift`).
+- A Control Center and Lock Screen "Log Food" control, from the existing intents.
 - Watch complications and Smart Stack widgets, from the Watch's snapshot.
 - Replace SFSpeechRecognizer with SpeechAnalyzer in `Services/Voice/Dictation.swift`.
 - A real app icon (the current one is a placeholder: a sun rising out of a bowl).

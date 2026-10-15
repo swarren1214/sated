@@ -14,6 +14,7 @@ enum AppTab: Hashable {
 struct RootTabView: View {
     @Environment(AppRouter.self) private var router
     @Environment(\.horizontalSizeClass) private var sizeClass
+    @State private var todayPath = NavigationPath()
 
     var body: some View {
         @Bindable var router = router
@@ -21,7 +22,7 @@ struct RootTabView: View {
             // Icons only on iPhone, no titles under them; each keeps its name for VoiceOver.
             // On iPad the names show, in the top tab bar and the sidebar.
             Tab(value: AppTab.today) {
-                NavigationStack { TodayView() }
+                NavigationStack(path: $todayPath) { TodayView().screenshotDestinations() }
             } label: {
                 TabIcon("Today", systemImage: "fork.knife", showsTitle: showsTitles)
             }
@@ -50,6 +51,8 @@ struct RootTabView: View {
         .tabViewStyle(.sidebarAdaptable)
         .tabViewSearchActivation(.searchTabSelection)
         .tabBarMinimizeBehavior(.onScrollDown)
+        // Debug: marketing screenshots (scripts/screenshots.sh). Does nothing otherwise.
+        .screenshotStage(todayPath: $todayPath)
     }
 }
 

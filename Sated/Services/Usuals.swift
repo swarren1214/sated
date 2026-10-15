@@ -1,4 +1,5 @@
 import Foundation
+import SwiftData
 
 /// The foods someone logs again and again at each meal, for one-tap logging on the Watch.
 ///
@@ -75,5 +76,18 @@ nonisolated enum Usuals {
     static func key(for food: WatchFood) -> String {
         if let foodID = food.foodID, !foodID.hasPrefix("recent.") { return foodID }
         return "\(food.name.lowercased())|\(food.placeName?.lowercased() ?? "")"
+    }
+}
+
+extension Usuals {
+    /// The usuals from the log, for the Watch and Siri.
+    @MainActor
+    static func current(in context: ModelContext, now: Date = .now, calendar: Calendar = .current) -> [Meal: [WatchFood]] {
+        let since = calendar.date(byAdding: .day, value: -lookback, to: calendar.startOfDay(for: now)) ?? now
+        let descriptor = FetchDescriptor<FoodEntry>(predicate: #Predicate { $0.date >= since })
+        let logged = ((try? context.fetch(descriptor)) ?? []).map {
+            Logged(date: $0.date, meal: $0.meal, food: WatchFood(entry: $0))
+        }
+        return rank(logged, now: now, calendar: calendar)
     }
 }

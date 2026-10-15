@@ -53,6 +53,14 @@ struct TrendsView: View {
         .navigationTitle("Trends")
         // The tab's own tint, so charts, rings and headings match the accent.
         .tint(accent.color)
+        // Screenshot mode (Debug): the range the screenshot asks for.
+        .task {
+            switch ScreenshotMode.screen {
+            case .month?: range = .month
+            case .day?: range = .day
+            default: break
+            }
+        }
     }
 }
 

@@ -2,6 +2,7 @@ import AVFoundation
 import Foundation
 import Observation
 import OSLog
+import os
 import Speech
 
 /// Live speech-to-text on the iPhone, for voice logging and talking to Coach.
@@ -30,9 +31,23 @@ final class Dictation {
     @ObservationIgnored private var task: SFSpeechRecognitionTask?
     /// Bumped on every start and finish, so callbacks from an earlier listen are ignored.
     @ObservationIgnored private var session = 0
+    /// Microphone buffers received in this listen, to notice a silent microphone.
+    @ObservationIgnored private let buffersSeen = OSAllocatedUnfairLock(initialState: 0)
+    @ObservationIgnored private var configurationObserver: NSObjectProtocol?
+    @ObservationIgnored private var watchdog: Task<Void, Never>?
     @ObservationIgnored private let log = Logger(subsystem: "com.stephenwarren.sated", category: "dictation")
 
     var isListening: Bool { state == .listening }
+
+    init() {
+        // The first recording after launch can switch the audio hardware a moment after the
+        // engine starts; the engine then stops itself and the microphone goes quiet.
+        configurationObserver = NotificationCenter.default.addObserver(
+            forName: .AVAudioEngineConfigurationChange, object: engine, queue: .main
+        ) { [weak self] _ in
+            MainActor.assumeIsolated { self?.restartMicrophone() }
+        }
+    }
 
     func start() async {
         guard state != .listening else { return }
@@ -60,15 +75,7 @@ final class Dictation {
             request.addsPunctuation = true
             self.request = request
 
-            Self.installTap(on: engine.inputNode, request: request) { [weak self] level in
-                let dictation = self
-                Task { @MainActor in
-                    guard let self = dictation, current == self.session else { return }
-                    self.level = level
-                }
-            }
-            engine.prepare()
-            try engine.start()
+            try startMicrophone(request: request, session: current)
 
             task = Self.recognize(with: recognizer, request: request) { [weak self] text, isFinal, failed in
                 let dictation = self
@@ -79,6 +86,7 @@ final class Dictation {
                 }
             }
             state = .listening
+            watchForSilence(session: current)
         } catch {
             log.error("Couldn't start listening: \(error.localizedDescription, privacy: .public)")
             finish()
@@ -92,7 +100,63 @@ final class Dictation {
         finish()
     }
 
+    /// Installs the tap with the input's current format and starts the engine.
+    private func startMicrophone(request: SFSpeechAudioBufferRecognitionRequest, session current: Int) throws {
+        let seen = buffersSeen
+        seen.withLock { $0 = 0 }
+        engine.inputNode.removeTap(onBus: 0)
+        Self.installTap(on: engine.inputNode, request: request) { [weak self] level in
+            seen.withLock { $0 += 1 }
+            let dictation = self
+            Task { @MainActor in
+                guard let self = dictation, current == self.session else { return }
+                self.level = level
+            }
+        }
+        engine.prepare()
+        try engine.start()
+    }
+
+    /// Starts the microphone again into the same recognition request.
+    private func restartMicrophone() {
+        guard state == .listening, let request else { return }
+        log.notice("Restarting the microphone after a configuration change")
+        if engine.isRunning { engine.stop() }
+        do {
+            try startMicrophone(request: request, session: session)
+            watchForSilence(session: session)
+        } catch {
+            log.error("Couldn't restart the microphone: \(error.localizedDescription, privacy: .public)")
+            finish()
+            state = .unavailable
+        }
+    }
+
+    /// If no audio arrives soon after starting, restart the microphone once.
+    private func watchForSilence(session current: Int, retry: Bool = true) {
+        watchdog?.cancel()
+        watchdog = Task { [weak self] in
+            try? await Task.sleep(for: .milliseconds(1200))
+            guard !Task.isCancelled, let self, current == self.session, self.state == .listening else { return }
+            guard self.buffersSeen.withLock({ $0 }) == 0 else { return }
+            if retry, let request = self.request {
+                self.log.notice("No microphone audio yet; restarting")
+                if self.engine.isRunning { self.engine.stop() }
+                do {
+                    try self.startMicrophone(request: request, session: current)
+                    self.watchForSilence(session: current, retry: false)
+                    return
+                } catch {}
+            }
+            self.log.error("The microphone stayed silent")
+            self.finish()
+            self.state = .unavailable
+        }
+    }
+
     private func finish() {
+        watchdog?.cancel()
+        watchdog = nil
         // Anything still arriving from this listen is now stale.
         session += 1
         if engine.isRunning { engine.stop() }

@@ -90,6 +90,8 @@ actor LifestyleAPI {
     }
 
     func prepareSession() async {
+        // Screenshot mode (Debug) never signs in to the API.
+        if ScreenshotMode.isOn { return }
         do {
             _ = try await accessToken()
         } catch {
