@@ -312,6 +312,140 @@ actor HearthAPI {
         SecItemDelete(query as CFDictionary)
     }
 
+    // MARK: One sign-in for every Hearth app
+
+    /// What following the shared sign-in changed here.
+    nonisolated enum SharedSignInChange: Sendable {
+        case unchanged
+        /// Took the session another Hearth app signed in with.
+        case adopted
+        /// The shared sign-in went away (signed out in another Hearth app); the next API call
+        /// starts an anonymous session again.
+        case signedOut
+    }
+
+    nonisolated private static let hearthApp: HearthApp = .sated
+    /// The Supabase user whose session this app has seen in (or put in) the shared Keychain, so
+    /// a missing shared session reads as "signed out in another app", not "never shared".
+    nonisolated private static let sharedUserKey = "hearth.sharedSessionUserID"
+    /// A hash of the last refresh token Supabase rejected, so a dead shared session isn't
+    /// adopted again.
+    nonisolated private static let deadTokenKey = "hearth.deadRefreshToken"
+
+    /// True once someone has signed in with Apple, here or in another Hearth app (not an
+    /// anonymous session).
+    var isSignedInWithApple: Bool {
+        guard let authSession else { return false }
+        return authSession.user.isAnonymous != true
+    }
+
+    /// Applies the shared sign-in rules (see `HearthSharedSession`): one Keychain read, and
+    /// nothing is written when this app is already in step, so its own writes don't loop.
+    @discardableResult
+    func followSharedSession() -> SharedSignInChange {
+        guard !ScreenshotMode.isOn else { return .unchanged }
+        let defaults = UserDefaults.standard
+        let signedIn = isSignedInWithApple
+        guard let shared = HearthAccounts.session() else {
+            guard let current = authSession, signedIn else { return .unchanged }
+            if defaults.string(forKey: Self.sharedUserKey) == current.user.id {
+                // This sign-in was shared and now it's gone: signed out in another Hearth app.
+                forgetSession()
+                return .signedOut
+            }
+            // Signed in before the apps shared a sign-in: share it now.
+            share(current)
+            return .unchanged
+        }
+        if Self.isDead(refreshToken: shared.refreshToken) {
+            // Supabase already refused this one; replace it with ours if we have one.
+            if let current = authSession, signedIn { share(current) }
+            return .unchanged
+        }
+        if let current = authSession, signedIn, current.user.id == shared.userID {
+            if defaults.string(forKey: Self.sharedUserKey) != shared.userID {
+                defaults.set(shared.userID, forKey: Self.sharedUserKey)
+            }
+            // Same person: keep whichever token lasts longer.
+            if shared.refreshToken != current.refreshToken {
+                if Int(shared.expiresAt) > current.expiresAt {
+                    store(Self.authSession(from: shared))
+                } else if current.expiresAt > Int(shared.expiresAt) {
+                    share(current)
+                }
+            }
+            return .unchanged
+        }
+        // No session, an anonymous one, or someone else signed in in another app: follow it.
+        store(Self.authSession(from: shared))
+        defaults.set(shared.userID, forKey: Self.sharedUserKey)
+        return .adopted
+    }
+
+    /// Signs out here and in every Hearth app on this device. The next API call starts a new
+    /// anonymous session.
+    func signOut() {
+        if isSignedInWithApple { HearthAccounts.signOutEverywhere() }
+        forgetSession()
+    }
+
+    /// Forgets this app's session (not the shared one).
+    private func forgetSession() {
+        Self.deleteStoredSession()
+        authSession = nil
+        UserDefaults.standard.removeObject(forKey: Self.sharedUserKey)
+    }
+
+    /// Shares a signed-in session with the other Hearth apps. Anonymous sessions never are.
+    private func share(_ session: AuthSession) {
+        guard !ScreenshotMode.isOn, session.user.isAnonymous != true else { return }
+        HearthAccounts.saveSession(HearthSharedSession(
+            accessToken: session.accessToken,
+            refreshToken: session.refreshToken,
+            expiresAt: Double(session.expiresAt),
+            userID: session.user.id,
+            email: session.user.email,
+            updatedBy: Self.hearthApp
+        ))
+        UserDefaults.standard.set(session.user.id, forKey: Self.sharedUserKey)
+    }
+
+    private nonisolated static func authSession(from shared: HearthSharedSession) -> AuthSession {
+        AuthSession(
+            accessToken: shared.accessToken,
+            refreshToken: shared.refreshToken,
+            expiresAt: Int(shared.expiresAt),
+            user: AuthUser(id: shared.userID, isAnonymous: false, email: shared.email)
+        )
+    }
+
+    private nonisolated static func tokenHash(_ token: String) -> String {
+        SHA256.hash(data: Data(token.utf8)).map { String(format: "%02x", $0) }.joined()
+    }
+
+    private nonisolated static func markDead(refreshToken: String) {
+        UserDefaults.standard.set(tokenHash(refreshToken), forKey: deadTokenKey)
+    }
+
+    private nonisolated static func isDead(refreshToken: String) -> Bool {
+        UserDefaults.standard.string(forKey: deadTokenKey) == tokenHash(refreshToken)
+    }
+
+    /// "Steve Warren", or nil when Apple didn't send a name (it only does the first time).
+    nonisolated static func formatted(_ name: PersonNameComponents?) -> String? {
+        guard let name else { return nil }
+        let text = PersonNameComponentsFormatter.localizedString(from: name, style: .default)
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        return text.isEmpty ? nil : text
+    }
+
+    /// The name another Hearth app got from Apple for this Apple user, for when Apple doesn't
+    /// send it again.
+    nonisolated static func sharedAppleName(for appleUserID: String) -> String? {
+        guard let shared = HearthAccounts.appleID(), shared.userID == appleUserID else { return nil }
+        return shared.fullName
+    }
+
     private nonisolated static func message(from data: Data, status: Int) -> String {
         let detail = try? JSONDecoder().decode(AuthError.self, from: data)
         return detail?.message ?? detail?.msg ?? detail?.errorDescription ?? "The service returned HTTP \(status)."
@@ -319,5 +453,25 @@ actor HearthAPI {
 
     private nonisolated static func error(from data: Data, status: Int) -> ClientError {
         .service(message(from: data, status: status))
+    }
+}
+
+/// Keeps Sated's sign-in in step with the other Hearth apps while it's open: when another app
+/// writes (`Hearth.didChange`: signed in, out, or refreshed) and when Sated becomes active.
+@MainActor
+enum HearthSignIn {
+    private static var observer: NSObjectProtocol?
+
+    static func start() {
+        guard observer == nil, !ScreenshotMode.isOn else { return }
+        Hearth.startObservingChanges()
+        observer = NotificationCenter.default.addObserver(forName: Hearth.didChange, object: nil, queue: .main) { _ in
+            Task { @MainActor in await HearthSignIn.follow() }
+        }
+    }
+
+    static func follow() async {
+        guard !ScreenshotMode.isOn else { return }
+        await HearthAPI.shared.followSharedSession()
     }
 }

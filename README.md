@@ -352,3 +352,14 @@ Sated silently creates and refreshes an anonymous Supabase session in the Keycha
 (`Services/HearthAPI.swift`), then uses its bearer token for the shared Hearth API
 through `Services/API/APIClient.swift`. The app remains usable offline and does not upload
 food logs, health data, or coach conversations.
+
+**One sign-in for every Hearth app.** BigTable, Suffice and Sated use the same Supabase project.
+When someone has signed in with Apple in BigTable or Suffice, Sated adopts that shared session
+(`HearthAccounts` in `Services/Hearth/HearthShared.swift`, Keychain access group
+`group.com.stephenwarren.hearth`) instead of its anonymous one; anonymous sessions are never
+shared. Before spending a refresh token it re-reads the shared session (another app may have
+refreshed already), and after refreshing a signed-in session it saves it back. When another app
+signs out or switches person, Sated follows on `Hearth.didChange` or when it becomes active
+(`HearthSignIn`), going back to an anonymous session. `HearthAPI.signInWithApple(…)` shares the
+session and the Apple user too, for when Sated gets its own Sign in with Apple button. Off in
+screenshot mode.

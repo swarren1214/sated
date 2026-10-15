@@ -17,6 +17,8 @@ struct SatedApp: App {
         UIView.appearance(whenContainedInInstancesOf: [UIAlertController.self]).tintColor = .label
         WidgetSync.start(container: container)
         WatchBridge.shared.start(container: container)
+        // One sign-in for every Hearth app: follow sign-ins and sign-outs in BigTable and Suffice.
+        HearthSignIn.start()
     }
 
     var body: some Scene {
@@ -157,6 +159,7 @@ struct AppRoot: View {
                 AppRouter.shared.rollOverIfNeeded()
                 applyAppearance(appearance)
                 Task { await health.refreshActiveEnergy() }
+                Task { await HearthSignIn.follow() }
             }
     }
 
