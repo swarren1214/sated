@@ -22,7 +22,7 @@ struct SatedApp: App {
     var body: some Scene {
         WindowGroup {
             AppRoot()
-                .task { await LifestyleAPI.shared.prepareSession() }
+                .task { await HearthAPI.shared.prepareSession() }
                 .environment(router)
                 .environment(coach)
                 .environment(FoodDatabase.shared)

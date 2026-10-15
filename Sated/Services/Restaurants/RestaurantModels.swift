@@ -1,6 +1,6 @@
 import Foundation
 
-/// A chain's menu from the Lifestyle API (`GET /v1/restaurants/menu`), with nutrition per serving.
+/// A chain's menu from the Hearth API (`GET /v1/restaurants/menu`), with nutrition per serving.
 nonisolated struct RestaurantMenu: Codable, Hashable, Sendable {
     /// The place name that was asked about.
     var query: String

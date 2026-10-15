@@ -4,7 +4,7 @@ import Foundation
 import OSLog
 import Security
 
-/// The app's identity with the shared Lifestyle API: a silent anonymous Supabase session (or
+/// The app's identity with the shared Hearth API: a silent anonymous Supabase session (or
 /// Sign in with Apple), kept in the Keychain. `APIClient` asks it for tokens.
 ///
 /// Reliability:
@@ -14,8 +14,17 @@ import Security
 /// - A new anonymous user is created only when Supabase rejects the refresh token, never
 ///   because the network or Supabase failed, so a bad connection can't churn identities.
 /// - If the Keychain can't be written, the session still works for this launch.
-actor LifestyleAPI {
-    static let shared = LifestyleAPI()
+///
+/// One sign-in for every Hearth app (see `HearthSharedSession` in HearthShared.swift):
+/// - A signed-in (Apple) session is shared with BigTable and Suffice through `HearthAccounts`;
+///   anonymous sessions never are.
+/// - With no session or only an anonymous one, Sated adopts the shared one.
+/// - Before spending a refresh token, the shared session is re-read: another app may already
+///   have refreshed it.
+/// - When the shared session disappears (signed out in another app) or changes person, Sated
+///   follows it, falling back to an anonymous session.
+actor HearthAPI {
+    static let shared = HearthAPI()
 
     nonisolated struct Identity: Decodable, Sendable {
         let id: String
@@ -24,10 +33,12 @@ actor LifestyleAPI {
     nonisolated private struct AuthUser: Codable, Sendable {
         let id: String
         let isAnonymous: Bool?
+        let email: String?
 
         enum CodingKeys: String, CodingKey {
             case id
             case isAnonymous = "is_anonymous"
+            case email
         }
     }
 
@@ -76,9 +87,9 @@ actor LifestyleAPI {
         }
     }
 
-    private static let keychainService = "com.stephenwarren.lifestyle.supabase"
+    private static let keychainService = "com.stephenwarren.hearth.supabase"
     private static let keychainAccount = "session"
-    private static let log = Logger(subsystem: Bundle.main.bundleIdentifier ?? "Lifestyle", category: "api")
+    private static let log = Logger(subsystem: Bundle.main.bundleIdentifier ?? "Hearth", category: "api")
 
     private let session: URLSession
     private var authSession: AuthSession?
@@ -92,6 +103,7 @@ actor LifestyleAPI {
     func prepareSession() async {
         // Screenshot mode (Debug) never signs in to the API.
         if ScreenshotMode.isOn { return }
+        followSharedSession()
         do {
             _ = try await accessToken()
         } catch {
@@ -107,7 +119,8 @@ actor LifestyleAPI {
         if let renewal {
             return try await renewal.value.accessToken
         }
-        let task = Task { try await self.obtainSession() }
+        let rejectedToken = renew ? authSession?.accessToken : nil
+        let task = Task { try await self.obtainSession(rejectedToken: rejectedToken) }
         renewal = task
         defer { renewal = nil }
         return try await task.value.accessToken
@@ -122,7 +135,9 @@ actor LifestyleAPI {
         try await authorizedData(path: "/v1/banking/link-token", method: "POST", body: Data("{}".utf8))
     }
 
-    func signInWithApple(identityToken: Data?, nonce: String?) async throws {
+    /// Trades Apple's identity token for a Supabase session, and shares the sign-in (and who
+    /// signed in with Apple) with the other Hearth apps.
+    func signInWithApple(identityToken: Data?, nonce: String?, appleUserID: String? = nil, fullName: PersonNameComponents? = nil, email: String? = nil) async throws {
         guard let identityToken, let token = String(data: identityToken, encoding: .utf8) else {
             throw ClientError.missingAppleToken
         }
@@ -134,6 +149,15 @@ actor LifestyleAPI {
         ])
         let newSession: AuthSession = try await auth(path: "/auth/v1/token?grant_type=id_token", body: body)
         store(newSession)
+        share(newSession)
+        if let appleUserID {
+            HearthAccounts.saveAppleID(HearthSharedAppleID(
+                userID: appleUserID,
+                fullName: Self.formatted(fullName),
+                email: email,
+                updatedBy: Self.hearthApp
+            ))
+        }
     }
 
     nonisolated static func prepareAppleRequest(_ request: ASAuthorizationAppleIDRequest) throws -> String {
@@ -172,12 +196,30 @@ actor LifestyleAPI {
 
     /// Refreshes the session, or signs in anonymously when there's none or Supabase rejects
     /// the refresh token. Network and server failures are thrown as they are.
-    private func obtainSession() async throws -> AuthSession {
+    /// `rejectedToken` is the access token the API just refused, if that's why we're here.
+    private func obtainSession(rejectedToken: String?) async throws -> AuthSession {
+        // Another Hearth app may have signed in, signed out or refreshed since we last looked;
+        // if it already refreshed, use its token rather than spending the refresh token again.
+        followSharedSession()
+        if let current = authSession, current.accessToken != rejectedToken,
+           current.expiresAt > Int(Date().timeIntervalSince1970) + 60 {
+            return current
+        }
         if let refreshToken = authSession?.refreshToken {
             do {
                 return try await refresh(refreshToken)
             } catch ClientError.rejected(let message) {
+                // Another Hearth app may have spent this refresh token a moment ago.
+                if let shared = HearthAccounts.session(), shared.userID == authSession?.user.id,
+                   shared.refreshToken != refreshToken {
+                    let adopted = Self.authSession(from: shared)
+                    store(adopted)
+                    if adopted.expiresAt > Int(Date().timeIntervalSince1970) + 60 { return adopted }
+                    do { return try await refresh(adopted.refreshToken) } catch ClientError.rejected {}
+                }
                 Self.log.notice("Refresh token rejected (\(message, privacy: .public)); starting a new anonymous session")
+                // Don't adopt this dead session again from the shared Keychain.
+                Self.markDead(refreshToken: authSession?.refreshToken ?? refreshToken)
                 Self.deleteStoredSession()
                 authSession = nil
             }
@@ -195,6 +237,7 @@ actor LifestyleAPI {
         let body = try JSONSerialization.data(withJSONObject: ["refresh_token": refreshToken])
         let refreshed: AuthSession = try await auth(path: "/auth/v1/token?grant_type=refresh_token", body: body)
         store(refreshed)
+        share(refreshed)
         return refreshed
     }
 

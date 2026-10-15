@@ -16,15 +16,15 @@ nonisolated enum APIError: Error, Equatable, LocalizedError, Sendable {
     /// Anything else the API refused, by its error code.
     case refused(code: String, status: Int)
 
-    /// A failure getting a token from `LifestyleAPI`.
+    /// A failure getting a token from `HearthAPI`.
     init(sessionError error: Error) {
         switch error {
         case let error as APIError: self = error
         case is URLError: self.init(urlError: error)
-        case LifestyleAPI.ClientError.rejected:
+        case HearthAPI.ClientError.rejected:
             // Supabase refused to sign in (anonymous sign-ins are off, or the key is wrong).
             self = .notConfigured
-        case LifestyleAPI.ClientError.rateLimited: self = .rateLimited(retryAfter: nil)
+        case HearthAPI.ClientError.rateLimited: self = .rateLimited(retryAfter: nil)
         default: self = .unavailable
         }
     }
@@ -84,7 +84,7 @@ nonisolated enum RetryPolicy {
     }
 }
 
-/// Talks to the shared Lifestyle API: attaches the session's token from `LifestyleAPI`, retries
+/// Talks to the shared Hearth API: attaches the session's token from `HearthAPI`, retries
 /// what's safe to retry, renews a rejected token once, and turns every failure into an
 /// `APIError`.
 nonisolated struct APIClient: Sendable {
@@ -97,7 +97,7 @@ nonisolated struct APIClient: Sendable {
 
     var baseURL: URL = AppConfig.apiBaseURL
     var urlSession: URLSession = APIClient.makeSession()
-    var session: LifestyleAPI = .shared
+    var session: HearthAPI = .shared
     private static let log = Logger(subsystem: "com.stephenwarren.sated", category: "api")
 
     private static func makeSession() -> URLSession {

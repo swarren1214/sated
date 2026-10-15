@@ -33,9 +33,9 @@ struct RetryPolicyTests {
     }
 
     @Test func mapsSessionErrors() {
-        #expect(APIError(sessionError: LifestyleAPI.ClientError.rejected("Anonymous sign-ins are disabled")) == .notConfigured)
-        #expect(APIError(sessionError: LifestyleAPI.ClientError.rateLimited) == .rateLimited(retryAfter: nil))
-        #expect(APIError(sessionError: LifestyleAPI.ClientError.service("HTTP 500")) == .unavailable)
+        #expect(APIError(sessionError: HearthAPI.ClientError.rejected("Anonymous sign-ins are disabled")) == .notConfigured)
+        #expect(APIError(sessionError: HearthAPI.ClientError.rateLimited) == .rateLimited(retryAfter: nil))
+        #expect(APIError(sessionError: HearthAPI.ClientError.service("HTTP 500")) == .unavailable)
         #expect(APIError(sessionError: URLError(.notConnectedToInternet)) == .offline)
         #expect(APIError(sessionError: APIError.timedOut) == .timedOut)
     }

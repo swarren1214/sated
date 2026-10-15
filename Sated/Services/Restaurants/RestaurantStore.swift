@@ -16,7 +16,7 @@ nonisolated struct LookupAnswer: Equatable, Sendable {
     var restaurant: String?
 }
 
-/// Restaurant menus and "does this place have one" answers, from the Lifestyle API, with a
+/// Restaurant menus and "does this place have one" answers, from the Hearth API, with a
 /// small cache on the device so menus open instantly and still work with a bad connection.
 ///
 /// - A menu is kept for a day (the provider's terms allow no longer) in Caches, so it never

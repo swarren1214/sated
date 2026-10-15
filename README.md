@@ -215,14 +215,14 @@ when Sated already has location permission and you're at a restaurant.
   bakeries and bars within 800 m, plus search. Location is asked for only on the Eating Out
   screen, once per visit, and never saved. "You're here" is the nearest place within 75 m
   (up to 150 m with a rough fix).
-- **Menus** for chains come from the Lifestyle API (`GET /v1/restaurants/menu`, backed by
+- **Menus** for chains come from the Hearth API (`GET /v1/restaurants/menu`, backed by
   fatsecret). "Full menu" badges come from `POST /v1/restaurants/lookup`. Pick a serving and
   how many, then log it, or add several items to **Your Plate** and log them together.
 - **Estimate** covers everywhere else: common dishes for the cuisine its name suggests (from
   the bundled USDA foods), search, **Scan the Menu** (tap a dish on a printed menu), **Say
   What You Had**, and **Last Time Here**. Portions are Small / Regular (1½ servings) / Large,
   and every number shows "≈".
-- **Logos** come from Logo.dev through the Lifestyle API (`POST /v1/brands/logos`), found by
+- **Logos** come from Logo.dev through the Hearth API (`POST /v1/brands/logos`), found by
   the place's own website from Apple Maps, or by the chain it matched. Never by a raw place
   name, which could pull an unrelated company's logo; those keep their initials. Logos are
   saved for 30 days (a "no logo" for 3), requests are batched, and any failure leaves the
@@ -233,7 +233,7 @@ when Sated already has location permission and you're at a restaurant.
 
 ### Reliability
 
-- `Services/LifestyleAPI.swift` (the shared identity, see below): tokens are refreshed a
+- `Services/HearthAPI.swift` (the shared identity, see below): tokens are refreshed a
   minute before they expire, only one refresh runs at a time, and a new anonymous user is
   made only when Supabase rejects the refresh token, never because the network failed.
 - `Services/API/APIClient.swift`: 15 s timeouts and up to three tries for timeouts, 5xx and
@@ -251,7 +251,7 @@ when Sated already has location permission and you're at a restaurant.
 
 `App/AppConfig.swift` holds the API URL and the Supabase project's publishable key. In
 Supabase, **Authentication › Sign In / Providers › Allow anonymous sign-ins** must be on.
-The API needs `FATSECRET_CLIENT_ID` and `FATSECRET_CLIENT_SECRET` (see lifestyle-api's README).
+The API needs `FATSECRET_CLIENT_ID` and `FATSECRET_CLIENT_SECRET` (see hearth-api's README).
 Menu nutrition must be credited "Powered by fatsecret"; the menu screen and Settings › About do.
 
 ## Logging other days
@@ -259,6 +259,33 @@ Menu nutrition must be credited "Powered by fatsecret"; the menu screen and Sett
 Today has a calendar button next to Settings (a sideways swipe moves a day at a time). Everything
 logged while another day is showing goes to that day, at the current time of day. Coach's
 suggested plates always go to today.
+
+## Planned meals from BigTable
+
+When BigTable (the Hearth meal planner) is on the same iPhone, Add Food shows its planned meal
+for the selected day and meal at the top: "From BigTable", the meal's title and about how many
+calories a serving is. Tapping it picks servings and the meal, then logs one entry named after
+the meal with the estimated macros (source "Estimate", brand "BigTable"). Snacks have no
+BigTable slot, and meals BigTable shares without recipes (eating out, leftovers) aren't shown.
+
+- **Sharing**: the main app has the `group.com.stephenwarren.hearth` app group and reads
+  BigTable's `meal-plan` file through `Services/Hearth/HearthShared.swift` (synced from
+  `~/Developer/hearthkit`, don't edit it here). `Services/Hearth/BigTableMeals.swift` reads the
+  plan when Add Food appears and follows `Hearth.didChange`; plans older than two weeks are
+  ignored. Off in screenshot mode.
+- **Estimating**, all on the device (`Services/Hearth/RecipeEstimator.swift`): each ingredient
+  is matched to a bundled USDA food. Names are cleaned of prep words ("diced", "shredded") and a
+  few recipe words are rewritten the way USDA names them ("bell pepper" is "Peppers, sweet").
+  Search results are re-ranked for ingredients rather than dishes: every word must appear,
+  dish words ("dip", "soup", "with") count heavily against a food and "raw" wins ties, so
+  "onion" is "Onions, raw", not "Onion dip". Amounts become grams through the food's own
+  household measures ("1 cup, shredded", "1 clove", "1 medium"), plain weights, or US volumes
+  with the food's density. The recipe total is divided by its servings (four when BigTable
+  doesn't say), and a meal's recipes add up to one plate.
+- **Confidence**: an ingredient counts as confident when every word matched and the amount was
+  weighed with a real measure. Ingredients with no amount ("salt to taste") are left out. Under
+  half confident and the estimate is labeled "Rough"; it can still be logged. Every number is
+  shown with "≈", and the sheet lists what each ingredient matched.
 
 ## What's built (milestone 1)
 
@@ -269,8 +296,8 @@ suggested plates always go to today.
 - **Today**: calories-left ring with eaten, goal and active energy from Health; protein, carbs,
   fat and fiber rings; a summary of what's left; the four meals; logging streak.
 - **Meals**: entries for one meal, swipe to delete, tap to change servings or move meals.
-- **Add Food**: meal picker, search, Scan, Say It, Quick Add, "Fits what's left today"
-  suggestions and Recent. Tapping a food opens the detail.
+- **Add Food**: meal picker, BigTable's planned meal, search, Scan, Say It, Quick Add,
+  "Fits what's left today" suggestions and Recent. Tapping a food opens the detail.
 - **Food detail**: serving picker (household measures, ounces, 100 g), servings stepper, meal, calories and macros against goals.
 - **Scan**: barcode lookup with Details and Add, and Nutrition Label mode.
 - **Say It**: listening waveform, transcript, then a confirm card with per-item servings.
@@ -281,8 +308,8 @@ suggested plates always go to today.
 - **Settings**: daily goals, Apple Health, Coach, appearance and accent, CSV export, credits.
 - **Apple Health**: each entry saves dietary energy, protein, carbs, fat and fiber, tagged with
   the entry's ID so edits and deletes stay in step. Reads today's active energy.
-- **Tests**: Swift Testing for the summary math, streaks, Open Food Facts parsing, search and
-  voice amount conversion (⌘U).
+- **Tests**: Swift Testing for the summary math, streaks, Open Food Facts parsing, search,
+  voice amount conversion and BigTable recipe estimates (⌘U).
 
 ## Project layout
 
@@ -295,9 +322,10 @@ Sated/
   Models/         SwiftData FoodEntry, nutrients and goals, summary math
   Resources/      Bundled foods
   Services/       Food (database, Open Food Facts), Health, Coach (model, tools, parsers),
-                  Voice (dictation, Kokoro, spoken replies), LifestyleAPI and API
+                  Voice (dictation, Kokoro, spoken replies), HearthAPI and API
                   (shared identity, client), Restaurants (menus, places, history),
-                  WatchBridge and Usuals (Apple Watch)
+                  WatchBridge and Usuals (Apple Watch), Hearth (sharing with the other
+                  Hearth apps; BigTable's planned meals and their estimates)
   Intents/        Siri and Shortcuts (App Intents)
 SatedWatch/       The Watch app: today, usuals, Say It
 Shared/           Types built into the app, widgets and Watch (snapshots, Meal, Watch payloads)
@@ -321,6 +349,6 @@ Sated is for general wellness and isn't medical advice.
 ## Shared API identity
 
 Sated silently creates and refreshes an anonymous Supabase session in the Keychain
-(`Services/LifestyleAPI.swift`), then uses its bearer token for the shared Lifestyle API
+(`Services/HearthAPI.swift`), then uses its bearer token for the shared Hearth API
 through `Services/API/APIClient.swift`. The app remains usable offline and does not upload
 food logs, health data, or coach conversations.

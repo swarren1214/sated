@@ -4,7 +4,7 @@ import SwiftUI
 
 /// Eating Out: the place the person is at, places they've logged before, places nearby, and
 /// a search for anywhere else. Places come from Apple Maps; whether each has a menu comes
-/// from the Lifestyle API.
+/// from the Hearth API.
 struct RestaurantsView: View {
     @Environment(\.modelContext) private var context
     @Environment(\.openURL) private var openURL

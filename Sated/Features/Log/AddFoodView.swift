@@ -18,6 +18,8 @@ struct AddFoodView: View {
     @State private var meal: Meal = .suggested()
     @State private var path = NavigationPath()
     @State private var nearby = NearbyPlaces.shared
+    @State private var bigTable = BigTableMeals.shared
+    @State private var plannedPick: PlannedPick?
     @State private var showsScanner = false
     @State private var showsVoice = false
     @State private var showsQuickAdd = false
@@ -51,6 +53,17 @@ struct AddFoodView: View {
                     .listRowSeparator(.hidden)
 
                     if query.isEmpty {
+                        // What BigTable planned for this meal, ready to log in a tap.
+                        if let planned = bigTable.plannedMeal(on: router.day, for: meal),
+                           let estimate = bigTable.estimate(for: planned, database: database) {
+                            PlannedMealCard(meal: planned, estimate: estimate) {
+                                plannedPick = PlannedPick(meal: planned, estimate: estimate)
+                            }
+                            .listRowBackground(Color.clear)
+                            .listRowInsets(EdgeInsets())
+                            .listRowSeparator(.hidden)
+                        }
+
                         QuickActions(
                             scan: { showsScanner = true },
                             voice: OnDeviceModel.isOffered ? { showsVoice = true } : nil,
@@ -137,7 +150,13 @@ struct AddFoodView: View {
             .sheet(isPresented: $showsQuickAdd) {
                 QuickAddView(meal: meal) { router.finishAdding() }
             }
+            .sheet(item: $plannedPick) { pick in
+                PlannedMealSheet(pick: pick, meal: meal) { router.finishAdding() }
+            }
             .onAppear {
+                // Follows BigTable's plan from here on, and picks up changes made while away.
+                bigTable.start()
+                bigTable.reload()
                 if let preset = router.mealForNextEntry {
                     meal = preset
                     router.mealForNextEntry = nil

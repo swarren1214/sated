@@ -23,7 +23,7 @@ nonisolated struct LogoKey: Hashable, Sendable {
     }
 }
 
-/// Restaurant logos from Logo.dev, through the Lifestyle API (`POST /v1/brands/logos`), which
+/// Restaurant logos from Logo.dev, through the Hearth API (`POST /v1/brands/logos`), which
 /// turns domains and chain names into CDN image URLs.
 ///
 /// - Logos are saved in Caches for 30 days and show offline. A "no logo" answer is kept for
