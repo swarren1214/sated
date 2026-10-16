@@ -47,7 +47,8 @@ struct RestaurantsView: View {
             await nearby.refresh()
         }
         .refreshable { await nearby.refresh(force: true) }
-        .task(id: query) { await search() }
+        // Searches again once the location arrives, for distances and nearest first.
+        .task(id: SearchKey(query: query, located: nearby.location != nil)) { await search() }
     }
 
     @ViewBuilder private var browse: some View {
@@ -185,6 +186,12 @@ struct RestaurantsView: View {
             }
         }
     }
+}
+
+/// What a search depends on: the text, and whether the person's location is known yet.
+private struct SearchKey: Hashable {
+    var query: String
+    var located: Bool
 }
 
 #Preview {

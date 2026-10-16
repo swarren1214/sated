@@ -114,6 +114,14 @@ struct SettingsView: View {
                 Text("Your log lives on this \(DeviceName.current) and in your private iCloud. When you look up a restaurant, only its name is sent to get the menu; nothing you log ever leaves your devices.")
             }
 
+            Section {
+                NavigationLink {
+                    HearthAppsView(current: .sated)
+                } label: {
+                    HearthAppsRowLabel(current: .sated)
+                }
+            }
+
             Section("About") {
                 // The app icon, from the exports in Developer/app-icons (Assets › AppIconImage),
                 // light and dark.

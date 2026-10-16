@@ -13,6 +13,9 @@ nonisolated struct Place: Identifiable, Hashable, Sendable {
     var distance: Double?
     /// The place's own website domain ("chipotle.com"), from Apple Maps, for its logo.
     var domain: String?
+    /// The street address, from Apple Maps ("1250 N State St, Orem"), to tell a chain's
+    /// locations apart.
+    var address: String?
 
     var ref: PlaceRef { PlaceRef(id: id, name: name) }
 
@@ -21,7 +24,7 @@ nonisolated struct Place: Identifiable, Hashable, Sendable {
         return CLLocationCoordinate2D(latitude: latitude, longitude: longitude)
     }
 
-    init(id: String, name: String, kind: String? = nil, latitude: Double? = nil, longitude: Double? = nil, distance: Double? = nil, domain: String? = nil) {
+    init(id: String, name: String, kind: String? = nil, latitude: Double? = nil, longitude: Double? = nil, distance: Double? = nil, domain: String? = nil, address: String? = nil) {
         self.id = id
         self.name = name
         self.kind = kind
@@ -29,6 +32,7 @@ nonisolated struct Place: Identifiable, Hashable, Sendable {
         self.longitude = longitude
         self.distance = distance
         self.domain = domain
+        self.address = address
     }
 
     /// Hosts that serve many businesses (social pages, ordering and site builders). Their logo
@@ -60,9 +64,13 @@ nonisolated struct Place: Identifiable, Hashable, Sendable {
         self.init(id: ref.id, name: ref.name)
     }
 
-    /// "Mexican · 0.1 mi", as much as is known.
+    /// "0.4 mi · 1250 N State St, Orem" when the address is known, so a chain's locations can
+    /// be told apart; otherwise "Mexican · 0.1 mi", as much as is known.
     var detail: String {
-        [Cuisine.guess(name: name, kind: kind)?.name ?? kind, distanceText].compactMap { $0 }.joined(separator: " · ")
+        if let address {
+            return [distanceText, address].compactMap { $0 }.joined(separator: " · ")
+        }
+        return [Cuisine.guess(name: name, kind: kind)?.name ?? kind, distanceText].compactMap { $0 }.joined(separator: " · ")
     }
 
     var distanceText: String? {
@@ -185,10 +193,22 @@ enum Places {
                 latitude: itemLocation.coordinate.latitude,
                 longitude: itemLocation.coordinate.longitude,
                 distance: location.map { itemLocation.distance(from: $0) },
-                domain: Place.domain(from: item.url)
+                domain: Place.domain(from: item.url),
+                address: address(of: item)
             )
         }
         return all.sorted { ($0.distance ?? .infinity) < ($1.distance ?? .infinity) }
+    }
+
+    /// Apple Maps' short address on one line ("1250 N State St, Orem"), else the full one.
+    private static func address(of item: MKMapItem) -> String? {
+        let raw = item.address?.shortAddress ?? item.address?.fullAddress
+        let line = raw?
+            .split(whereSeparator: \.isNewline)
+            .map { $0.trimmingCharacters(in: .whitespaces) }
+            .filter { !$0.isEmpty }
+            .joined(separator: ", ")
+        return (line?.isEmpty ?? true) ? nil : line
     }
 
     private static func kind(_ category: MKPointOfInterestCategory?) -> String? {
