@@ -70,7 +70,9 @@ private struct TabIcon: View {
 
     var body: some View {
         if showsTitle {
-            Label(title, systemImage: systemImage)
+            // The sidebar tints tab icons with the app's color; keep each icon the color of its
+            // name instead (black in Light Mode, white in Dark Mode). See AGENT.md.
+            Label { Text(title) } icon: { Image.menuIcon(systemImage) }
         } else {
             Label(title, systemImage: systemImage)
                 .labelStyle(.iconOnly)
