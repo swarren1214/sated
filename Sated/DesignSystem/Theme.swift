@@ -2,7 +2,6 @@ import SwiftUI
 
 /// Keys for settings stored with @AppStorage. Keep every key here so views stay in sync.
 nonisolated enum SettingsKey {
-    static let accent = "settings.accent"
     static let appearance = "settings.appearance"
     static let goalCalories = "goals.calories"
     static let goalProtein = "goals.protein"
@@ -15,24 +14,9 @@ nonisolated enum SettingsKey {
     static let spokenReplies = "coach.spokenReplies"
 }
 
-/// The user-selectable app tint (Settings › Accent Color). Orange is Sated's default.
-enum AccentOption: String, CaseIterable, Identifiable {
-    case orange, red, pink, indigo, blue, teal, green
-
-    var id: String { rawValue }
-    var name: String { rawValue.capitalized }
-
-    var color: Color {
-        switch self {
-        case .orange: Color(hex: 0xE8650F)
-        case .red: Color(hex: 0xD93B30)
-        case .pink: Color(hex: 0xC2185B)
-        case .indigo: Color(hex: 0x5E5CE6)
-        case .blue: Color(hex: 0x0A7AFF)
-        case .teal: Color(hex: 0x0E8A8A)
-        case .green: Color(hex: 0x1E9E6A)
-        }
-    }
+/// Sated's tint everywhere: the orange of its icon. (It used to be a setting, Accent Color.)
+enum Accent {
+    static let color = Color(hex: 0xE8650F)
 }
 
 /// Settings › Appearance.

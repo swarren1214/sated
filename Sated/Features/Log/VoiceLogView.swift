@@ -23,7 +23,6 @@ struct VoiceLogView: View {
     @Environment(\.modelContext) private var context
     @Environment(FoodDatabase.self) private var database
     @AppStorage(SettingsKey.confirmVoiceEntries) private var confirmEntries = true
-    @AppStorage(SettingsKey.accent) private var accent: AccentOption = .orange
     @State private var dictation = Dictation()
     @State private var phase: Phase = .listening
     @State private var items: [VoiceItem] = []
@@ -166,7 +165,7 @@ struct VoiceLogView: View {
                 withAnimation(.snappy) { editing.toggle() }
             }
             .fontWeight(.semibold)
-            .foregroundStyle(accent.color)
+            .foregroundStyle(Accent.color)
         }
         .font(.subheadline)
         .padding(.horizontal, 4)
@@ -186,7 +185,7 @@ struct VoiceLogView: View {
             .buttonStyle(.plain)
             .font(.headline)
             .foregroundStyle(.white)
-            .background(accent.color.gradient, in: .capsule)
+            .background(Accent.color.gradient, in: .capsule)
             .disabled(matched.isEmpty)
             .opacity(matched.isEmpty ? 0.5 : 1)
         }

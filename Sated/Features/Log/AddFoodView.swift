@@ -147,6 +147,8 @@ struct AddFoodView: View {
             .frame(maxWidth: sizeClass == .regular ? 820 : .infinity)
             .frame(maxWidth: .infinity)
             .background(Color(.systemGroupedBackground))
+            // Recent and "Fits what's left" come from the log in iCloud.
+            .refreshable { await CloudRefresh.refresh() }
             .navigationTitle("Add Food")
             .navigationSubtitle(router.isToday ? "" : "Adding to \(router.day.formatted(.dateTime.weekday(.wide).month().day()))")
             .navigationDestination(for: FoodItem.self) { food in

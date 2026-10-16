@@ -41,7 +41,6 @@ nonisolated enum ScreenshotMode {
         defaults.set(goals.fat, forKey: SettingsKey.goalFat)
         defaults.set(goals.fiber, forKey: SettingsKey.goalFiber)
         defaults.set(true, forKey: SettingsKey.readActiveEnergy)
-        defaults.set("orange", forKey: SettingsKey.accent)
     }
 
     // MARK: Demo restaurants

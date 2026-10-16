@@ -22,7 +22,6 @@ struct SettingsView: View {
     @AppStorage(SettingsKey.coachPause) private var coachPause = CoachPause.medium.seconds
     @State private var model = KokoroModel.shared
     @State private var speaker = CoachSpeaker.shared
-    @AppStorage(SettingsKey.accent) private var accent: AccentOption = .orange
     @AppStorage(SettingsKey.appearance) private var appearance: AppearanceOption = .system
 
     private var appVersion: String {
@@ -37,7 +36,7 @@ struct SettingsView: View {
             AccountSection()
 
             Section {
-                GoalRow(title: "Calories", unit: "kcal", color: accent.color, value: $goalCalories, range: 1200...6000, step: 50)
+                GoalRow(title: "Calories", unit: "kcal", color: Accent.color, value: $goalCalories, range: 1200...6000, step: 50)
                 GoalRow(title: "Protein", unit: "g", color: Macro.protein.color, value: $goalProtein, range: 20...400, step: 5)
                 GoalRow(title: "Carbs", unit: "g", color: Macro.carbs.color, value: $goalCarbs, range: 20...600, step: 5)
                 GoalRow(title: "Fat", unit: "g", color: Macro.fat.color, value: $goalFat, range: 20...250, step: 5)
@@ -100,11 +99,16 @@ struct SettingsView: View {
                     ForEach(AppearanceOption.allCases) { Text($0.name).tag($0) }
                 }
                 .pickerStyle(.segmented)
-                AccentPicker(selection: $accent)
+            }
+
+            Section("iCloud") {
+                HearthSyncCard(app: .sated, snapshot: SyncMonitor.shared.snapshot, summary: "Your food log and goals") {
+                    await SyncMonitor.shared.syncNow()
+                }
+                .hearthSyncCardRow()
             }
 
             Section {
-                LabeledContent("iCloud Sync", value: AppConfig.cloudSyncEnabled ? "On" : "This \(DeviceName.current) only")
                 ShareLink(item: CSVExport(text: FoodLog.csv(in: context)), preview: SharePreview("Sated food log")) {
                     Label("Export as CSV", systemImage: "square.and.arrow.up")
                 }
@@ -168,7 +172,8 @@ struct SettingsView: View {
     }
 }
 
-/// Settings › Account: who's signed in, and Sign Out; or Sign in with Apple when signed out.
+/// Settings › Account: the shared Hearth account section (HearthAccount.swift): who's signed in
+/// and Sign Out, or Sign in with Apple when signed out.
 private struct AccountSection: View {
     @Environment(AccountStore.self) private var account
     @State private var confirmsSignOut = false
@@ -177,81 +182,45 @@ private struct AccountSection: View {
     var body: some View {
         Section {
             switch account.status {
-            case .signedIn(let name, let email):
-                HStack(spacing: 14) {
-                    AccountAvatar(name: name)
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(name ?? "Signed In").font(.headline)
-                        if let email {
-                            Text(email)
-                                .font(.subheadline)
-                                .foregroundStyle(.secondary)
-                                .lineLimit(1)
-                                .truncationMode(.middle)
-                        }
-                        Label("Signed in with Apple", systemImage: "apple.logo")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-                }
-                .padding(.vertical, 4)
-                .accessibilityElement(children: .combine)
-
-                Button("Sign Out", role: .destructive) { confirmsSignOut = true }
-                    .disabled(isSigningOut)
-                    .confirmationDialog("Sign out of Sated?", isPresented: $confirmsSignOut, titleVisibility: .visible) {
-                        Button("Sign Out", role: .destructive) {
-                            isSigningOut = true
-                            Task {
-                                await account.signOut()
-                                isSigningOut = false
-                            }
-                        }
-                    } message: {
-                        Text("This also signs you out of BigTable and Suffice on this \(DeviceName.current). Your food log stays on this \(DeviceName.current) and in iCloud.")
-                    }
-            case .signedOut:
-                LabeledContent("Status", value: "Not signed in")
-                AppleSignInButton()
-                    .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
             case .unknown:
                 LabeledContent("Status") { ProgressView() }
+            case .signedIn, .signedOut:
+                HearthAccountSection(
+                    app: .sated,
+                    profile: profile,
+                    pitch: "Sign in to use one account across Sated, BigTable and Suffice. Your food log stays in your iCloud, and everything in Sated works without it."
+                ) {
+                    AppleSignInButton()
+                } onSignOut: {
+                    confirmsSignOut = true
+                }
+                .hearthAccountSectionRow()
+                .disabled(isSigningOut)
             }
         } header: {
             Text("Account")
         } footer: {
-            Text(account.isSignedIn
-                 ? "One sign-in for Sated, BigTable and Suffice. Your food log isn't stored in your account."
-                 : "Sign in to use one account across Sated, BigTable and Suffice. Everything in Sated works without it.")
-        }
-    }
-}
-
-/// Initials in a circle: "SW".
-private struct AccountAvatar: View {
-    var name: String?
-
-    private var initials: String {
-        let parts = (name ?? "").split(separator: " ").prefix(2)
-        let letters = parts.compactMap(\.first).map(String.init).joined()
-        return letters.isEmpty ? "" : letters.uppercased()
-    }
-
-    var body: some View {
-        ZStack {
-            Circle().fill(.tint)
-            if initials.isEmpty {
-                Image(systemName: "person.fill")
-                    .font(.title3)
-                    .foregroundStyle(.white)
-            } else {
-                Text(initials)
-                    .font(.title3.bold())
-                    .foregroundStyle(.white)
+            if account.isSignedIn {
+                Text("One sign-in for Sated, BigTable and Suffice. Your food log isn't stored in your account.")
             }
         }
-        .frame(width: 52, height: 52)
-        .accessibilityHidden(true)
+        .alert("Sign out of Sated?", isPresented: $confirmsSignOut) {
+            Button("Sign Out", role: .destructive) {
+                isSigningOut = true
+                Task {
+                    await account.signOut()
+                    isSigningOut = false
+                }
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("This also signs you out of BigTable and Suffice on this \(DeviceName.current). Your food log stays on this \(DeviceName.current) and in iCloud.")
+        }
+    }
+
+    private var profile: HearthAccountProfile? {
+        guard case .signedIn(let name, let email) = account.status else { return nil }
+        return HearthAccountProfile(name: name, email: email)
     }
 }
 
@@ -317,38 +286,6 @@ private struct GoalRow: View {
                     .monospacedDigit()
             }
         }
-    }
-}
-
-private struct AccentPicker: View {
-    @Binding var selection: AccentOption
-
-    var body: some View {
-        HStack {
-            ForEach(AccentOption.allCases) { option in
-                Button {
-                    selection = option
-                } label: {
-                    Circle()
-                        .fill(option.color)
-                        .frame(width: 32, height: 32)
-                        .overlay {
-                            if option == selection {
-                                Image(systemName: "checkmark")
-                                    .font(.footnote.bold())
-                                    .foregroundStyle(.white)
-                            }
-                        }
-                        .padding(3)
-                        .overlay(Circle().strokeBorder(option == selection ? option.color : .clear, lineWidth: 2))
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel(option.name)
-                .accessibilityAddTraits(option == selection ? .isSelected : [])
-                if option != AccentOption.allCases.last { Spacer(minLength: 0) }
-            }
-        }
-        .padding(.vertical, 4)
     }
 }
 

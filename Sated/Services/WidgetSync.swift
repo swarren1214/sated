@@ -1,3 +1,4 @@
+import CoreData
 import OSLog
 import SwiftData
 import UIKit
@@ -19,6 +20,8 @@ enum WidgetSync {
         let center = NotificationCenter.default
         let names: [Notification.Name] = [
             ModelContext.didSave,
+            // Changes imported from iCloud (another device's entries) don't save a context here.
+            .NSPersistentStoreRemoteChange,
             UserDefaults.didChangeNotification,
             .NSCalendarDayChanged,
             UIApplication.didEnterBackgroundNotification,
@@ -87,9 +90,8 @@ enum WidgetSync {
         let week = Summaries.days(records, from: weekStart, through: today, calendar: calendar)
             .map { WidgetSnapshot.DayLine(date: $0.date, calories: $0.totals.calories) }
 
-        let accent = AccentOption(rawValue: UserDefaults.standard.string(forKey: SettingsKey.accent) ?? "") ?? .orange
         var red: CGFloat = 0, green: CGFloat = 0, blue: CGFloat = 0, alpha: CGFloat = 0
-        UIColor(accent.color).getRed(&red, green: &green, blue: &blue, alpha: &alpha)
+        UIColor(Accent.color).getRed(&red, green: &green, blue: &blue, alpha: &alpha)
 
         return WidgetSnapshot(
             day: today,

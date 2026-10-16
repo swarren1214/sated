@@ -178,7 +178,7 @@ struct EstimateMealView: View {
             Label(title, systemImage: symbol)
                 .font(.subheadline.weight(.semibold))
                 .frame(maxWidth: .infinity)
-                .frame(height: 44)
+                .frame(minHeight: 44)
         }
         .buttonStyle(.bordered)
         .buttonBorderShape(.capsule)

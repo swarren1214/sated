@@ -46,7 +46,12 @@ struct RestaurantsView: View {
             spots = EatingOutHistory.spots(in: context)
             await nearby.refresh()
         }
-        .refreshable { await nearby.refresh(force: true) }
+        .refreshable {
+            await nearby.refresh(force: true)
+            // Your Spots come from the log, which lives in iCloud.
+            await CloudRefresh.refresh()
+            spots = EatingOutHistory.spots(in: context)
+        }
         // Searches again once the location arrives, for distances and nearest first.
         .task(id: SearchKey(query: query, located: nearby.location != nil)) { await search() }
     }

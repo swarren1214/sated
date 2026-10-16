@@ -9,14 +9,13 @@ import SwiftUI
 struct ListeningGlow: View {
     var active: Bool
     var level: Double
-    @AppStorage(SettingsKey.accent) private var accent: AccentOption = .orange
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         TimelineView(.animation(paused: !active || reduceMotion)) { timeline in
             let angle = reduceMotion ? 0 : timeline.date.timeIntervalSinceReferenceDate * 40
             let gradient = AngularGradient(
-                colors: [accent.color, .pink, .purple.opacity(0.8), accent.color, .orange, accent.color],
+                colors: [Accent.color, .pink, .purple.opacity(0.8), Accent.color, .orange, Accent.color],
                 center: .center,
                 angle: .degrees(angle)
             )
@@ -62,7 +61,7 @@ struct VoiceTopBar: View {
             Label("On this \(DeviceName.current)", systemImage: "lock")
                 .font(.subheadline.weight(.semibold))
                 .padding(.horizontal, 14)
-                .frame(height: 36)
+                .frame(minHeight: 36)
                 .glassEffect(.regular, in: .capsule)
                 .accessibilityLabel("Runs on this \(DeviceName.current)")
             Spacer()
@@ -112,7 +111,6 @@ struct ListeningControls: View {
     var canStop: Bool
     var onType: () -> Void
     var onStop: () -> Void
-    @AppStorage(SettingsKey.accent) private var accent: AccentOption = .orange
 
     var body: some View {
         VStack(spacing: 18) {
@@ -137,8 +135,8 @@ struct ListeningControls: View {
                         .fill(.white)
                         .frame(width: 26, height: 26)
                         .frame(width: 80, height: 80)
-                        .background(accent.color.gradient, in: .circle)
-                        .shadow(color: accent.color.opacity(0.45), radius: 16, y: 8)
+                        .background(Accent.color.gradient, in: .circle)
+                        .shadow(color: Accent.color.opacity(0.45), radius: 16, y: 8)
                 }
                 .buttonStyle(.plain)
                 .disabled(!canStop)
@@ -168,14 +166,13 @@ struct VoicePanel<Content: View>: View {
 /// Bars that rise and fall with the microphone level, tallest in the middle.
 struct Waveform: View {
     var level: Double
-    @AppStorage(SettingsKey.accent) private var accent: AccentOption = .orange
     private let shape: [Double] = [0.15, 0.25, 0.4, 0.3, 0.55, 0.45, 0.7, 0.6, 0.85, 0.7, 1, 0.8, 0.95, 0.75, 1, 0.85, 0.7, 0.9, 0.65, 0.75, 0.5, 0.6, 0.4, 0.5, 0.3, 0.35, 0.22, 0.28, 0.18, 0.12]
 
     var body: some View {
         HStack(spacing: 4) {
             ForEach(shape.indices, id: \.self) { index in
                 Capsule()
-                    .fill(accent.color.opacity(0.55 + shape[index] * 0.45))
+                    .fill(Accent.color.opacity(0.55 + shape[index] * 0.45))
                     .frame(width: 4, height: max(6, 64 * shape[index] * max(level, 0.14)))
             }
         }

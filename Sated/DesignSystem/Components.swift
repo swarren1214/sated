@@ -155,7 +155,7 @@ struct OnDeviceBadge: View {
         Label("On-device", systemImage: "lock.fill")
             .font(.footnote.weight(.semibold))
             .padding(.horizontal, 12)
-            .frame(height: 32)
+            .frame(minHeight: 32)
             .glassEffect(.regular, in: .capsule)
     }
 }

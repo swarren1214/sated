@@ -24,7 +24,7 @@ private struct PreviewEnvironment: ViewModifier {
             .environment(HealthService.shared)
             .environment(AccountStore.shared)
             .modelContainer(container)
-            .tint(AccentOption.orange.color)
+            .tint(Accent.color)
     }
 }
 

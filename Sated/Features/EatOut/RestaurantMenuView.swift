@@ -296,7 +296,7 @@ private struct CategoryChips: View {
         return Button(title) { selection = value }
             .font(.subheadline.weight(.semibold))
             .padding(.horizontal, 14)
-            .frame(height: 32)
+            .frame(minHeight: 32)
             .foregroundStyle(isOn ? Color.white : Color.primary)
             .background(isOn ? AnyShapeStyle(.tint) : AnyShapeStyle(Color(.tertiarySystemFill)), in: .capsule)
             .buttonStyle(.plain)

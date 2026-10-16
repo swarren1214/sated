@@ -59,6 +59,7 @@ struct MealView: View {
                 Text(totals.summary)
             }
         }
+        .refreshable { await CloudRefresh.refresh() }
         .navigationTitle(meal.name)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
@@ -116,10 +117,10 @@ struct EntryEditor: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel", systemImage: "xmark", role: .cancel) { dismiss() }
+                    SheetCancelButton { dismiss() }
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Save", systemImage: "checkmark", role: .confirm) {
+                    SheetDoneButton("Save") {
                         FoodLog.update(entry, servings: servings, meal: meal, in: context)
                         dismiss()
                     }

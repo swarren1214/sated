@@ -16,7 +16,6 @@ struct TrendsView: View {
     @AppStorage(SettingsKey.goalCarbs) private var goalCarbs = Goals.defaults.carbs
     @AppStorage(SettingsKey.goalFat) private var goalFat = Goals.defaults.fat
     @AppStorage(SettingsKey.goalFiber) private var goalFiber = Goals.defaults.fiber
-    @AppStorage(SettingsKey.accent) private var accent: AccentOption = .orange
 
     private let calendar = Calendar.current
 
@@ -34,6 +33,7 @@ struct TrendsView: View {
         let records = entries.map(\.record)
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
+                HeaderTitle("Trends")
                 Picker("Range", selection: $range) {
                     ForEach(Range.allCases) { Text($0.rawValue).tag($0) }
                 }
@@ -49,10 +49,10 @@ struct TrendsView: View {
             .padding(.bottom, 24)
             .readableWidth(760)
         }
-        .background(Color(.systemGroupedBackground))
-        .navigationTitle("Trends")
+        .refreshable { await CloudRefresh.refresh() }
+        .colorHeader("Trends")
         // The tab's own tint, so charts, rings and headings match the accent.
-        .tint(accent.color)
+        .tint(Accent.color)
         // Screenshot mode (Debug): the range the screenshot asks for.
         .task {
             switch ScreenshotMode.screen {
@@ -126,7 +126,6 @@ private struct WeekTrends: View {
 private struct CalorieChart: View {
     var days: [DaySummary]
     var goal: Double
-    @AppStorage(SettingsKey.accent) private var accent: AccentOption = .orange
     private let calendar = Calendar.current
 
     var body: some View {
@@ -175,11 +174,11 @@ private struct CalorieChart: View {
     }
 
     private func color(for day: DaySummary, isToday: Bool) -> Color {
-        if isToday { return accent.color }
+        if isToday { return Accent.color }
         switch CalorieStatus(calories: day.totals.calories, goal: goal) {
         case .over: return .over
         case .under: return .gray
-        case .on: return accent.color
+        case .on: return Accent.color
         }
     }
 }

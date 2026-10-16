@@ -12,7 +12,6 @@ struct CoachVoiceView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var context
     @Environment(CoachEngine.self) private var coach
-    @AppStorage(SettingsKey.accent) private var accent: AccentOption = .orange
     @AppStorage(SettingsKey.spokenReplies) private var spokenReplies = true
     @State private var conversation = CoachConversation()
     @State private var speaker = CoachSpeaker.shared
@@ -128,7 +127,7 @@ struct CoachVoiceView: View {
                             .font(.system(size: 15, weight: .bold))
                             .foregroundStyle(.white)
                             .frame(width: 36, height: 36)
-                            .background(accent.color, in: .circle)
+                            .background(Accent.color, in: .circle)
                             .buttonStyle(.plain)
                     }
                 }
@@ -148,7 +147,7 @@ struct CoachVoiceView: View {
             HStack(spacing: 12) {
                 Image(systemName: "speaker.wave.2.fill")
                     .symbolEffect(.variableColor.iterative, options: .repeating)
-                    .foregroundStyle(accent.color)
+                    .foregroundStyle(Accent.color)
                     .font(.title3)
                 Text("Start talking to interrupt.")
                     .font(.footnote)
@@ -175,11 +174,11 @@ struct CoachVoiceView: View {
                     Label("Resume", systemImage: "mic.fill")
                         .font(.subheadline.weight(.semibold))
                         .padding(.horizontal, 14)
-                        .frame(height: 36)
+                        .frame(minHeight: 36)
                 }
                 .buttonStyle(.plain)
-                .foregroundStyle(accent.color)
-                .background(accent.color.opacity(0.15), in: .capsule)
+                .foregroundStyle(Accent.color)
+                .background(Accent.color.opacity(0.15), in: .capsule)
             }
         case .failed(let message):
             Text(message).font(.subheadline)
@@ -190,7 +189,7 @@ struct CoachVoiceView: View {
     private func answer(_ reply: CoachMessage) -> some View {
         Label("Coach", systemImage: "sparkles")
             .font(.subheadline.weight(.semibold))
-            .foregroundStyle(accent.color)
+            .foregroundStyle(Accent.color)
         Text(reply.text)
             .font(.body)
             .fixedSize(horizontal: false, vertical: true)
@@ -222,7 +221,7 @@ struct CoachVoiceView: View {
             .buttonStyle(.plain)
             .font(.headline)
             .foregroundStyle(.white)
-            .background(accent.color.gradient, in: .capsule)
+            .background(Accent.color.gradient, in: .capsule)
             .disabled(reply.logged)
             .opacity(reply.logged ? 0.5 : 1)
         }
@@ -238,12 +237,12 @@ struct CoachVoiceView: View {
             } label: {
                 Label("Get Coach's natural voice (\(KokoroModel.approximateSize), runs on this \(DeviceName.current))", systemImage: "arrow.down.circle")
                     .font(.footnote.weight(.medium))
-                    .foregroundStyle(accent.color)
+                    .foregroundStyle(Accent.color)
             }
             .buttonStyle(.plain)
         case .downloading(let fraction):
             HStack(spacing: 8) {
-                ProgressView(value: fraction).tint(accent.color)
+                ProgressView(value: fraction).tint(Accent.color)
                 Text("\(Int(fraction * 100))%").font(.footnote).foregroundStyle(.secondary).monospacedDigit()
             }
         case .ready, .unavailable:
@@ -272,16 +271,16 @@ struct CoachVoiceView: View {
                 }
                 .buttonStyle(.plain)
                 .font(.headline)
-                .foregroundStyle(accent.color)
-                .background(accent.color.opacity(0.15), in: .capsule)
+                .foregroundStyle(Accent.color)
+                .background(Accent.color.opacity(0.15), in: .capsule)
             } else {
                 Button { close() } label: {
                     Text("Done").frame(maxWidth: .infinity, minHeight: 50)
                 }
                 .buttonStyle(.plain)
                 .font(.headline)
-                .foregroundStyle(accent.color)
-                .background(accent.color.opacity(0.15), in: .capsule)
+                .foregroundStyle(Accent.color)
+                .background(Accent.color.opacity(0.15), in: .capsule)
             }
         }
     }

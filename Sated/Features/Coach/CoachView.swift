@@ -8,7 +8,6 @@ struct CoachView: View {
     @State private var draft = ""
     @State private var showsVoice = false
     @FocusState private var composerFocused: Bool
-    @AppStorage(SettingsKey.accent) private var accent: AccentOption = .orange
 
     /// One line of the message field.
     private static let composerHeight: CGFloat = 44
@@ -22,6 +21,7 @@ struct CoachView: View {
         ScrollViewReader { proxy in
             ScrollView {
                 LazyVStack(spacing: 12) {
+                    HeaderTitle("Coach", subtitle: "On this \(DeviceName.current)")
                     if coach.messages.isEmpty {
                         intro
                     }
@@ -54,14 +54,16 @@ struct CoachView: View {
                 if thinking { withAnimation { proxy.scrollTo("thinking", anchor: .bottom) } }
             }
         }
-        .background(Color(.systemGroupedBackground))
-        .navigationTitle("Coach")
-        .navigationSubtitle("On this \(DeviceName.current)")
+        .colorHeader("Coach")
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
-                if !coach.messages.isEmpty {
-                    Button("Clear") { coach.reset() }
+                Group {
+                    if !coach.messages.isEmpty {
+                        Button("Clear") { coach.reset() }
+                    }
                 }
+                // White over the color header.
+                .tint(.white)
             }
         }
         .safeAreaInset(edge: .bottom) { composer }
@@ -136,7 +138,7 @@ struct CoachView: View {
                     }
                     .buttonStyle(.plain)
                     .foregroundStyle(.white)
-                    .background(accent.color, in: .circle)
+                    .background(Accent.color, in: .circle)
                     .padding(.bottom, (Self.composerHeight - Self.buttonSize) / 2)
                     .accessibilityLabel("Ask out loud")
                 } else {
@@ -148,7 +150,7 @@ struct CoachView: View {
                     }
                     .buttonStyle(.plain)
                     .foregroundStyle(.white)
-                    .background(accent.color, in: .circle)
+                    .background(Accent.color, in: .circle)
                     .padding(.bottom, (Self.composerHeight - Self.buttonSize) / 2)
                     .disabled(coach.isThinking)
                     .opacity(coach.isThinking ? 0.5 : 1)

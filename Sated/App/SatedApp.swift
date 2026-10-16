@@ -4,6 +4,8 @@ import UIKit
 
 @main
 struct SatedApp: App {
+    /// Registers for CloudKit's silent pushes, so changes from other devices arrive on their own.
+    @UIApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
     @State private var router = AppRouter.shared
     @State private var account = AccountStore.shared
     @State private var coach: CoachEngine
@@ -11,6 +13,10 @@ struct SatedApp: App {
 
     init() {
         ScreenshotMode.prepareLaunch()
+        // Goals and Coach settings follow the person through iCloud key-value storage.
+        CloudSettings.start()
+        // Follows iCloud sync for the iCloud Sync card in Settings.
+        SyncMonitor.shared.start()
         let container = Persistence.shared
         self.container = container
         _coach = State(initialValue: CoachEngine(data: CoachData(container: container, database: .shared)))
@@ -130,22 +136,21 @@ final class AppRouter {
     }
 }
 
-/// Applies the accent and appearance, and keeps Health and the coach warmed up.
+/// Applies the tint and appearance, and keeps Health and the coach warmed up.
 struct AppRoot: View {
     @Environment(\.scenePhase) private var scenePhase
     @Environment(HealthService.self) private var health
     @Environment(AccountStore.self) private var account
-    @AppStorage(SettingsKey.accent) private var accent: AccentOption = .orange
     @AppStorage(SettingsKey.appearance) private var appearance: AppearanceOption = .system
 
     var body: some View {
         RootTabView()
-            .tint(accent.color)
+            .tint(Accent.color)
             // Sign in with Apple, until signed in or "Not now". Skipped when BigTable or
             // Suffice already signed in on this iPhone.
             .fullScreenCover(isPresented: Binding(get: { account.showsSignInScreen }, set: { _ in })) {
                 SignInView()
-                    .tint(accent.color)
+                    .tint(Accent.color)
             }
             // Health's permission sheet waits until the sign-in screen is out of the way.
             .task(id: account.status == .unknown || account.showsSignInScreen) {

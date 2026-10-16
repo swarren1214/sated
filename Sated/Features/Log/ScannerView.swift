@@ -115,7 +115,7 @@ struct ScannerView: View {
             Text(meal.name)
                 .font(.subheadline.weight(.semibold))
                 .padding(.horizontal, 16)
-                .frame(height: 36)
+                .frame(minHeight: 36)
                 .glassEffect(.regular, in: .capsule)
             Spacer()
             Color.clear.frame(width: 44, height: 44)
@@ -228,7 +228,7 @@ struct ScannerView: View {
         Text(text)
             .font(.subheadline.weight(.medium))
             .padding(.horizontal, 16)
-            .frame(height: 40)
+            .frame(minHeight: 40)
             .glassEffect(.regular, in: .capsule)
     }
 

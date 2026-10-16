@@ -238,7 +238,7 @@ struct InlineSearchField: View {
             }
         }
         .padding(.horizontal, 12)
-        .frame(height: 40)
+        .frame(minHeight: 40)
         .background(Color(.tertiarySystemFill), in: .capsule)
     }
 }

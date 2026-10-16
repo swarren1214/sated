@@ -42,10 +42,10 @@ struct QuickAddView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel", systemImage: "xmark", role: .cancel) { dismiss() }
+                    SheetCancelButton { dismiss() }
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Add", systemImage: "checkmark", role: .confirm) { add() }
+                    SheetDoneButton("Add") { add() }
                         .disabled(calories == nil)
                 }
             }

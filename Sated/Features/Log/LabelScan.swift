@@ -103,14 +103,13 @@ final class LabelScanSession {
 /// The outline drawn around the panel once it's found.
 struct LabelPanelOutline: View {
     var rect: CGRect?
-    @AppStorage(SettingsKey.accent) private var accent: AccentOption = .orange
 
     var body: some View {
         if let rect {
             RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .strokeBorder(accent.color, lineWidth: 3)
-                .background(accent.color.opacity(0.08), in: .rect(cornerRadius: 14, style: .continuous))
-                .shadow(color: accent.color.opacity(0.5), radius: 8)
+                .strokeBorder(Accent.color, lineWidth: 3)
+                .background(Accent.color.opacity(0.08), in: .rect(cornerRadius: 14, style: .continuous))
+                .shadow(color: Accent.color.opacity(0.5), radius: 8)
                 .frame(width: rect.width, height: rect.height)
                 .position(x: rect.midX, y: rect.midY)
                 .allowsHitTesting(false)
@@ -124,7 +123,6 @@ struct LabelPanelOutline: View {
 struct LabelChecklist: View {
     var confirmed: LabelReading
     var leading: LabelReading
-    @AppStorage(SettingsKey.accent) private var accent: AccentOption = .orange
 
     private struct Item: Identifiable {
         var name: String
@@ -146,7 +144,7 @@ struct LabelChecklist: View {
             ForEach(items) { item in
                 VStack(spacing: 3) {
                     Image(systemName: item.done != nil ? "checkmark.circle.fill" : "circle.dashed")
-                        .foregroundStyle(item.done != nil ? AnyShapeStyle(accent.color) : AnyShapeStyle(.secondary))
+                        .foregroundStyle(item.done != nil ? AnyShapeStyle(Accent.color) : AnyShapeStyle(.secondary))
                         .contentTransition(.symbolEffect(.replace))
                     Text(item.name)
                         .font(.caption2.weight(.semibold))

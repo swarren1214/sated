@@ -21,17 +21,25 @@ struct TodayView: View {
                         withAnimation(.snappy) { router.move(byDays: value.translation.width > 0 ? -1 : 1) }
                     }
             )
-            .navigationTitle(router.dayTitle)
-            .navigationSubtitle(router.day.formatted(.dateTime.weekday(.wide).month(.wide).day().year()))
+            // The day's name and date are drawn large in the content (see DayLog).
+            .colorHeader(router.dayTitle)
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
-                    StreakBadge()
+                    Group {
+                        StreakBadge()
+                    }
+                    // White over the color header.
+                    .tint(.white)
                 }
                 // The badge draws its own glass capsule, sized to its contents.
                 .sharedBackgroundVisibility(.hidden)
                 ToolbarItemGroup(placement: .topBarTrailing) {
-                    Button("Choose Day", systemImage: "calendar") { showsCalendar = true }
-                    Button("Settings", systemImage: "person.crop.circle") { showsSettings = true }
+                    Group {
+                        Button("Choose Day", systemImage: "calendar") { showsCalendar = true }
+                        Button("Settings", systemImage: "person.crop.circle") { showsSettings = true }
+                    }
+                    // White over the color header.
+                    .tint(.white)
                 }
             }
             .sheet(isPresented: $showsSettings) {
@@ -123,15 +131,19 @@ private struct DayLog: View {
             Group {
                 if sizeClass == .regular {
                     // iPad: the day's numbers on the left, its meals on the right.
-                    HStack(alignment: .top, spacing: 24) {
-                        VStack(alignment: .leading, spacing: 22) { overview }
-                            .frame(maxWidth: .infinity)
-                        meals
-                            .frame(maxWidth: .infinity)
+                    VStack(alignment: .leading, spacing: 22) {
+                        header
+                        HStack(alignment: .top, spacing: 24) {
+                            VStack(alignment: .leading, spacing: 22) { overview }
+                                .frame(maxWidth: .infinity)
+                            meals
+                                .frame(maxWidth: .infinity)
+                        }
                     }
                     .readableWidth(1100)
                 } else {
                     VStack(alignment: .leading, spacing: 22) {
+                        header
                         overview
                         meals
                     }
@@ -140,7 +152,12 @@ private struct DayLog: View {
             .padding(.horizontal, sizeClass == .regular ? 24 : 16)
             .padding(.bottom, 24)
         }
-        .background(Color(.systemGroupedBackground))
+        // The color header and gray background come from TodayView.
+        // Pull to refresh: the latest from iCloud, and BigTable's plan.
+        .refreshable {
+            bigTable.reload()
+            await CloudRefresh.refresh()
+        }
         .onAppear {
             // BigTable's plan shows on empty meals; follow it from here on.
             bigTable.start()
@@ -149,6 +166,11 @@ private struct DayLog: View {
         .sheet(item: $plannedPick) { pick in
             PlannedMealSheet(pick: pick, meal: Meal(rawValue: pick.meal.slot) ?? .dinner) {}
         }
+    }
+
+    /// The day's name ("Today", "Yesterday"…) in white over the color header, with its date.
+    private var header: some View {
+        HeaderTitle(router.dayTitle, subtitle: day.formatted(.dateTime.weekday(.wide).month(.wide).day().year()))
     }
 
     /// What BigTable planned for an empty meal, and its estimate when it has recipes.
@@ -421,7 +443,6 @@ private struct PlannedMealRow: View {
 /// Days in a row with something logged.
 private struct StreakBadge: View {
     @Query private var recent: [FoodEntry]
-    @AppStorage(SettingsKey.accent) private var accent: AccentOption = .orange
 
     init() {
         let start = Calendar.current.date(byAdding: .day, value: -120, to: .now) ?? .now
@@ -438,7 +459,8 @@ private struct StreakBadge: View {
                 .contentTransition(.numericText())
         }
         .font(.body.weight(.semibold))
-        .foregroundStyle(accent.color)
+        // White, like the other controls over the color header.
+        .foregroundStyle(.white)
         .padding(.horizontal, 16)
         .frame(minWidth: 72, minHeight: 44)
         .fixedSize()
