@@ -121,6 +121,20 @@ final class WatchBridge: NSObject {
         let transcript = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !transcript.isEmpty else { return WatchParseReply(error: "Didn't catch anything. Try again.") }
 
+        // Logging by voice or a sentence (the Watch's Say It, Siri's Log Food) is Sated Plus or
+        // Hearth+. Woken in the background, the plan may not be read yet: check, but wait at
+        // most two seconds so the Watch and Siri still get an answer in time.
+        let purchases = HearthPurchases.shared
+        if !purchases.isUnlocked, purchases.isConfigured {
+            Task { await purchases.refresh() }
+            for _ in 0..<10 where !purchases.isUnlocked {
+                try? await Task.sleep(for: .milliseconds(200))
+            }
+        }
+        guard purchases.isUnlocked else {
+            return WatchParseReply(error: "Logging by voice is part of Sated Plus and Hearth+. Open Sated on your iPhone to try it free.")
+        }
+
         // Woken in the background, the bundled foods may still be loading.
         let database = FoodDatabase.shared
         for _ in 0..<30 where !database.isLoaded {

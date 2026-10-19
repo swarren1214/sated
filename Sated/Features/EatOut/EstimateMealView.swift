@@ -35,6 +35,8 @@ struct EstimateMealView: View {
     @State private var visits = 0
     @State private var showsScanner = false
     @State private var showsVoice = false
+    @State private var showsPaywall = false
+    @State private var purchases = HearthPurchases.shared
     @State private var commonDishes: [FoodItem] = []
 
     private var cuisine: Cuisine? { Cuisine.guess(name: place.name, kind: place.kind) }
@@ -80,7 +82,10 @@ struct EstimateMealView: View {
                             action("Scan the Menu", symbol: "text.viewfinder") { showsScanner = true }
                         }
                         if OnDeviceModel.isOffered {
-                            action("Say What You Had", symbol: "waveform") { showsVoice = true }
+                            action("Say What You Had", symbol: "waveform") {
+                                // Logging by voice is Sated Plus or Hearth+.
+                                if purchases.isUnlocked { showsVoice = true } else { showsPaywall = true }
+                            }
                         }
                     }
                     .listRowBackground(Color.clear)
@@ -155,6 +160,7 @@ struct EstimateMealView: View {
         .fullScreenCover(isPresented: $showsVoice) {
             VoiceLogView(meal: meal, place: place.ref, onAdded: onAdded)
         }
+        .hearthPaywall(isPresented: $showsPaywall, feature: SatedPlans.sayIt)
     }
 
     private func dishRow(_ food: FoodItem) -> some View {

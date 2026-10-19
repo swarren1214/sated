@@ -35,6 +35,11 @@ struct SettingsView: View {
         Form {
             AccountSection()
 
+            // Sated Plus and Hearth+: "Get Hearth+", or "Manage" for members.
+            Section {
+                HearthMembershipRow()
+            }
+
             Section {
                 GoalRow(title: "Calories", unit: "kcal", color: Accent.color, value: $goalCalories, range: 1200...6000, step: 50)
                 GoalRow(title: "Protein", unit: "g", color: Macro.protein.color, value: $goalProtein, range: 20...400, step: 5)
@@ -210,7 +215,12 @@ private struct AccountSection: View {
                 .disabled(isSigningOut)
             }
         } header: {
-            Text("Account")
+            HStack {
+                Text("Account")
+                Spacer()
+                // "HEARTH+" or "SATED PLUS" next to the signed-in person.
+                if account.isSignedIn { HearthMemberBadge() }
+            }
         } footer: {
             if account.isSignedIn {
                 Text("One sign-in for Sated, BigTable and Suffice. Your food log isn't stored in your account.")

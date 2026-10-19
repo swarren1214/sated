@@ -202,11 +202,16 @@ final class CoachEngine {
     /// The household's allergies and diets, and this person's likes and dislikes: from the Hearth
     /// household when the family has one, otherwise from the household BigTable shares on this
     /// device (`HearthFamily`). Nil when there's nothing.
+    ///
+    /// Carrying the household's food rules into Coach is the apps working together, so it's
+    /// Hearth+. Allergies are hard rules (AGENT.md), so without Hearth+ Coach still gets the Hearth
+    /// household's allergies and nothing else from it, and nothing from BigTable.
     static func householdNotes() -> String? {
         guard !ScreenshotMode.isOn else { return nil }
         let store = HearthHouseholdStore.shared
-        if store.exists { return hearthNotes(store) }
-        guard let family = Hearth.read(HearthFamily.self, from: .bigtable)?.value else { return nil }
+        let withHousehold = HearthPurchases.shared.hasHearthPlus
+        if store.exists { return hearthNotes(store, allergiesOnly: !withHousehold) }
+        guard withHousehold, let family = Hearth.read(HearthFamily.self, from: .bigtable)?.value else { return nil }
         func clean(_ list: [String]?) -> [String] {
             (list ?? []).map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }.filter { !$0.isEmpty }
         }
@@ -227,7 +232,7 @@ final class CoachEngine {
 
     /// Notes from the Hearth household. Allergies are anyone's in the family (Coach may suggest
     /// food for a shared meal); likes, dislikes and diet are this person's. No names.
-    private static func hearthNotes(_ store: HearthHouseholdStore) -> String? {
+    private static func hearthNotes(_ store: HearthHouseholdStore, allergiesOnly: Bool = false) -> String? {
         func clean(_ list: [String]) -> [String] {
             var seen = Set<String>()
             return list.map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
@@ -243,6 +248,10 @@ final class CoachEngine {
         let familyAllergies = clean(context.allergies).filter { allergy in !myAllergies.contains { $0.caseInsensitiveCompare(allergy) == .orderedSame } }
         if !familyAllergies.isEmpty {
             lines.append("- Someone in their household is allergic to \(familyAllergies.joined(separator: ", ")). Avoid these in food meant to share.")
+        }
+        if allergiesOnly {
+            guard !lines.isEmpty else { return nil }
+            return "From their Hearth household:\n" + lines.joined(separator: "\n")
         }
         let diet = clean((me?.diet ?? []) + (store.info?.restrictions ?? []))
         if !diet.isEmpty {

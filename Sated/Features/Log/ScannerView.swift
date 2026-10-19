@@ -33,12 +33,19 @@ struct ScannerView: View {
     @State private var lastBarcode: String?
     @State private var label = LabelScanSession()
     @State private var review: LabelDraft?
+    @State private var purchases = HearthPurchases.shared
+
+    /// Reading Nutrition Facts labels is Sated Plus or Hearth+; barcodes are free on purpose.
+    private var labelLocked: Bool { mode == .label && !purchases.isUnlocked }
 
     private var canScan: Bool { DataScannerViewController.isSupported && DataScannerViewController.isAvailable }
 
     var body: some View {
         ZStack {
-            if canScan {
+            if labelLocked {
+                // No camera reading labels without a plan; the card below says why.
+                Color.black.ignoresSafeArea()
+            } else if canScan {
                 DataScanner(mode: mode, feed: scan)
                     .id(mode)
                     .ignoresSafeArea()
@@ -75,11 +82,11 @@ struct ScannerView: View {
             Task { await lookUp(code) }
         }
         .onChange(of: scan.pieces) { _, pieces in
-            guard mode == .label, phase == .scanning, review == nil else { return }
+            guard mode == .label, !labelLocked, phase == .scanning, review == nil else { return }
             label.update(pieces)
         }
         .onChange(of: label.isComplete) { _, complete in
-            guard complete, mode == .label else { return }
+            guard complete, mode == .label, !labelLocked else { return }
             Task { await finishLabel(source: .camera, reading: label.confirmed.filled(from: label.leading)) }
         }
         .onChange(of: mode) { restart() }
@@ -127,7 +134,11 @@ struct ScannerView: View {
     private var resultCard: some View {
         switch phase {
         case .scanning:
-            if mode == .label {
+            if labelLocked {
+                HearthLockedCard(feature: SatedPlans.labelScanning, secondaryTitle: "Scan a Barcode") {
+                    mode = .barcode
+                }
+            } else if mode == .label {
                 labelCard
             } else {
                 hint("Point the camera at a barcode")

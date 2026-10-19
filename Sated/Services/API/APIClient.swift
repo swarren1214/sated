@@ -44,6 +44,13 @@ nonisolated enum APIError: Error, Equatable, LocalizedError, Sendable {
         }
     }
 
+    /// The server wants Sated Plus or Hearth+ for this (HTTP 402 `ENTITLEMENT_REQUIRED`): show
+    /// the paywall, not an error.
+    var needsPlan: Bool {
+        if case .refused(let code, let status) = self { return status == 402 || code == "ENTITLEMENT_REQUIRED" }
+        return false
+    }
+
     /// Whether trying again soon may work.
     var isTransient: Bool {
         switch self {
@@ -61,6 +68,7 @@ nonisolated enum APIError: Error, Equatable, LocalizedError, Sendable {
         case .unavailable: "Menus aren't available right now. Try again in a moment."
         case .notConfigured: "Restaurant menus aren't set up yet."
         case .badResponse: "Something went wrong reading the menu. Try again."
+        case .refused where needsPlan: "Restaurant menus are part of Sated Plus and Hearth+."
         case .refused: "That request didn't work. Try again."
         }
     }

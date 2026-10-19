@@ -29,10 +29,16 @@ struct RestaurantMenuView: View {
     @State private var plate: [PlateLine] = []
     @State private var showsPlate = false
     @State private var usuals: [Usual] = []
+    /// The server answered 402: restaurant menus need Sated Plus or Hearth+.
+    @State private var showsPaywall = false
+    @State private var purchases = HearthPurchases.shared
 
     var body: some View {
         Group {
-            if let result, !result.menu.hasMenu {
+            if !purchases.isUnlocked {
+                // Restaurant menus are Sated Plus or Hearth+; estimating stays free.
+                EatOutLockedView(place: place)
+            } else if let result, !result.menu.hasMenu {
                 EstimateMealView(place: place, meal: meal, onAdded: onAdded)
             } else if let result {
                 menu(result)
@@ -46,7 +52,11 @@ struct RestaurantMenuView: View {
                     .navigationBarTitleDisplayMode(.inline)
             }
         }
-        .task { await load() }
+        .task(id: purchases.isUnlocked) {
+            guard purchases.isUnlocked else { return }
+            await load()
+        }
+        .hearthPaywall(isPresented: $showsPaywall, feature: SatedPlans.restaurantMenus)
     }
 
     // MARK: Loading
@@ -71,7 +81,14 @@ struct RestaurantMenuView: View {
             return
         } catch {
             let apiError = error as? APIError ?? .unavailable
-            if result == nil {
+            if apiError.needsPlan {
+                // The plan ended or isn't there: the paywall, not an error.
+                withAnimation(.snappy) {
+                    result = nil
+                    self.error = apiError
+                }
+                showsPaywall = true
+            } else if result == nil {
                 self.error = apiError
             } else {
                 // Keep the saved menu up, and say it may be out of date.
@@ -229,7 +246,16 @@ struct RestaurantMenuView: View {
 
     // MARK: Failure
 
+    @ViewBuilder
     private func failed(_ error: APIError) -> some View {
+        if error.needsPlan {
+            EatOutLockedView(place: place)
+        } else {
+            unavailable(error)
+        }
+    }
+
+    private func unavailable(_ error: APIError) -> some View {
         ContentUnavailableView {
             Label(error == .offline ? "You're Offline" : "Menu Unavailable", systemImage: error == .offline ? "wifi.slash" : "fork.knife")
         } description: {
@@ -246,6 +272,29 @@ struct RestaurantMenuView: View {
         }
         .background(Color(.systemGroupedBackground))
         .navigationTitle(place.name)
+        .navigationBarTitleDisplayMode(.inline)
+    }
+}
+
+/// Where restaurant menus would be without Sated Plus or Hearth+: one calm card, and for a
+/// place, Estimate (free) instead.
+struct EatOutLockedView: View {
+    var place: Place?
+
+    var body: some View {
+        ScrollView {
+            VStack(spacing: 16) {
+                HearthLockedCard(feature: SatedPlans.restaurantMenus)
+                if let place {
+                    NavigationLink("Estimate Instead", value: EatOutRoute.estimate(place))
+                        .buttonStyle(.bordered)
+                }
+            }
+            .padding(16)
+            .readableWidth(560)
+        }
+        .background(Color(.systemGroupedBackground))
+        .navigationTitle(place?.name ?? "Eating Out")
         .navigationBarTitleDisplayMode(.inline)
     }
 }

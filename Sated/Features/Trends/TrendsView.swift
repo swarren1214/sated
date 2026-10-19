@@ -2,14 +2,16 @@ import Charts
 import SwiftData
 import SwiftUI
 
-/// Day, week and month summaries. Every number is computed in Summaries; nothing is estimated.
+/// Day, week and month summaries, and all time. Every number is computed in Summaries; nothing
+/// is estimated. The last 30 days are free; All Time is Sated Plus or Hearth+.
 struct TrendsView: View {
     enum Range: String, CaseIterable, Identifiable {
-        case day = "Day", week = "Week", month = "Month"
+        case day = "Day", week = "Week", month = "Month", allTime = "All Time"
         var id: String { rawValue }
     }
 
     @State private var range: Range = .week
+    @State private var purchases = HearthPurchases.shared
     @Query private var entries: [FoodEntry]
     @AppStorage(SettingsKey.goalCalories) private var goalCalories = Goals.defaults.calories
     @AppStorage(SettingsKey.goalProtein) private var goalProtein = Goals.defaults.protein
@@ -43,6 +45,12 @@ struct TrendsView: View {
                 case .day: DayTrends(entries: entries.filter { calendar.isDateInToday($0.date) }, goals: goals)
                 case .week: WeekTrends(records: records, goals: goals)
                 case .month: MonthTrends(records: records, goals: goals)
+                case .allTime:
+                    if purchases.isUnlocked {
+                        AllTimeTrends(goals: goals)
+                    } else {
+                        HearthLockedCard(feature: SatedPlans.allTimeTrends)
+                    }
                 }
             }
             .padding(.horizontal, 16)
@@ -293,6 +301,104 @@ private struct DayTrends: View {
             RoundedRectangle(cornerRadius: 3).fill(macro.color).frame(width: 9, height: 9)
             Text("\(Text(macro.name).foregroundStyle(.secondary)) \(Text("\(Int((value * 100).rounded()))%").bold())")
                 .monospacedDigit()
+        }
+    }
+}
+
+// MARK: - All time
+
+/// Every month logged: the average day per month against the goal, and all-time numbers. Its own
+/// query, since the screen's covers only the last two months.
+private struct AllTimeTrends: View {
+    var goals: Goals
+    @Query(sort: \FoodEntry.date) private var entries: [FoodEntry]
+    private let calendar = Calendar.current
+
+    struct MonthAverage: Identifiable {
+        var month: Date
+        var calories: Double
+        var id: Date { month }
+    }
+
+    var body: some View {
+        let records = entries.map(\.record)
+        let today = calendar.startOfDay(for: .now)
+        let first = records.first.map { calendar.startOfDay(for: $0.date) } ?? today
+        let yesterday = calendar.date(byAdding: .day, value: -1, to: today) ?? today
+        // Finished days only; today is still in progress.
+        let days = first <= yesterday ? Summaries.days(records, from: first, through: yesterday, calendar: calendar) : []
+        let stats = PeriodStats(days: days, goals: goals)
+        let months = monthlyAverages(stats.logged)
+
+        Card {
+            VStack(alignment: .leading, spacing: 4) {
+                Text("SINCE \(first.formatted(.dateTime.month(.wide).year()).uppercased())")
+                    .font(.footnote.weight(.semibold))
+                    .foregroundStyle(.secondary)
+                Text("\(Text(Int(stats.average.calories.rounded()).formatted()).font(.largeTitle.bold())) \(Text("kcal / day").foregroundStyle(.secondary))")
+                    .monospacedDigit()
+                Text("\(stats.logged.count) days logged · \(stats.daysOnTarget) on target")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                if months.count > 1 {
+                    MonthlyChart(months: months, goal: goals.calories)
+                        .frame(height: 180)
+                        .padding(.top, 16)
+                }
+            }
+        }
+
+        Grid(horizontalSpacing: 8) {
+            GridRow {
+                StatTile(title: "Avg protein", value: Grams.text(stats.average.protein), unit: " g")
+                StatTile(title: "Avg fiber", value: Grams.text(stats.average.fiber), unit: " g")
+                StatTile(title: "Protein goal", value: "\(stats.proteinGoalDays)", unit: "/\(stats.logged.count) days")
+            }
+        }
+
+        if let best = months.min(by: { abs($0.calories - goals.calories) < abs($1.calories - goals.calories) }), months.count > 1 {
+            SummaryText(
+                title: "ALL-TIME SUMMARY",
+                text: "You've logged \(stats.logged.count.formatted()) days over \(months.count) months. \(best.month.formatted(.dateTime.month(.wide).year())) was closest to your goal, averaging \(Int(best.calories.rounded()).formatted()) kcal a day."
+            )
+        }
+    }
+
+    private func monthlyAverages(_ logged: [DaySummary]) -> [MonthAverage] {
+        let grouped = Dictionary(grouping: logged) { calendar.dateInterval(of: .month, for: $0.date)?.start ?? $0.date }
+        return grouped.map { month, days in
+            MonthAverage(month: month, calories: days.reduce(0) { $0 + $1.totals.calories } / Double(days.count))
+        }
+        .sorted { $0.month < $1.month }
+    }
+
+    struct MonthlyChart: View {
+        var months: [MonthAverage]
+        var goal: Double
+
+        var body: some View {
+            Chart {
+                ForEach(months) { month in
+                    BarMark(
+                        x: .value("Month", month.month, unit: .month),
+                        y: .value("Calories", month.calories)
+                    )
+                    .foregroundStyle(.tint)
+                    .cornerRadius(4)
+                }
+                RuleMark(y: .value("Goal", goal))
+                    .foregroundStyle(Color.primary.opacity(0.5))
+                    .lineStyle(StrokeStyle(lineWidth: 1.5, dash: [4, 4]))
+            }
+            .chartYAxis {
+                AxisMarks(position: .leading, values: .automatic(desiredCount: 3)) { value in
+                    AxisGridLine()
+                    AxisValueLabel {
+                        if let kcal = value.as(Double.self) { Text("\(Int(kcal / 1000))k") }
+                    }
+                }
+            }
+            .accessibilityLabel("Average daily calories by month")
         }
     }
 }

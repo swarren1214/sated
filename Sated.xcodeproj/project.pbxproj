@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		41E7F95036E62950ECF86F81 /* RevenueCat in Frameworks */ = {isa = PBXBuildFile; productRef = 2862984B482C0422E40FC84A /* RevenueCat */; };
 		5A7E00000000000000000105 /* KokoroSwift in Frameworks */ = {isa = PBXBuildFile; productRef = 5A7E00000000000000000103 /* KokoroSwift */; };
 		5A7E00000000000000000106 /* MLX in Frameworks */ = {isa = PBXBuildFile; productRef = 5A7E00000000000000000104 /* MLX */; };
 		5A7E0000000000000000020D /* SatedWidgets.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 5A7E00000000000000000201 /* SatedWidgets.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
@@ -107,6 +108,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				41E7F95036E62950ECF86F81 /* RevenueCat in Frameworks */,
 				5A7E00000000000000000105 /* KokoroSwift in Frameworks */,
 				5A7E00000000000000000106 /* MLX in Frameworks */,
 			);
@@ -189,6 +191,7 @@
 			);
 			name = Sated;
 			packageProductDependencies = (
+				2862984B482C0422E40FC84A /* RevenueCat */,
 				5A7E00000000000000000103 /* KokoroSwift */,
 				5A7E00000000000000000104 /* MLX */,
 			);
@@ -300,6 +303,7 @@
 			mainGroup = 5A7E00000000000000000002;
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
+				FF56A605A1546C70E0C95362 /* XCRemoteSwiftPackageReference "purchases-ios-spm" */,
 				5A7E00000000000000000101 /* XCLocalSwiftPackageReference "Packages/KokoroSwift" */,
 				5A7E00000000000000000102 /* XCRemoteSwiftPackageReference "mlx-swift" */,
 			);
@@ -766,9 +770,22 @@
 				minimumVersion = 0.29.1;
 			};
 		};
+		FF56A605A1546C70E0C95362 /* XCRemoteSwiftPackageReference "purchases-ios-spm" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/RevenueCat/purchases-ios-spm";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 5.0.0;
+			};
+		};
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
+		2862984B482C0422E40FC84A /* RevenueCat */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = FF56A605A1546C70E0C95362 /* XCRemoteSwiftPackageReference "purchases-ios-spm" */;
+			productName = RevenueCat;
+		};
 		5A7E00000000000000000103 /* KokoroSwift */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = 5A7E00000000000000000101 /* XCLocalSwiftPackageReference "Packages/KokoroSwift" */;

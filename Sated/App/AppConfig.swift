@@ -16,6 +16,12 @@ enum AppConfig {
     nonisolated static let supabaseURL = URL(string: "https://kvhvsztvfpydhfpzicyy.supabase.co")!
     nonisolated static let supabasePublishableKey = "sb_publishable_j0eyoaQiN3fogFINKooaDA_V0yjXkgY"
 
+    /// RevenueCat's public Apple key for the one "Hearth" project (Sated Plus and Hearth+). The
+    /// same key in Debug. Until the real `appl_…` key replaces the placeholder, purchases aren't
+    /// set up and the paid features stay locked.
+    nonisolated static let revenueCatAPIKey = "appl_bovDymdeWTsHzyTTNITRaqLGvro"
+    nonisolated static var purchasesConfigured: Bool { revenueCatAPIKey != "REVENUECAT_PUBLIC_KEY" }
+
     /// Open Food Facts asks every app to identify itself as "AppName/Version (ContactEmail)".
     /// Replace the placeholder with a real support address before TestFlight.
     static let contactEmail = "[SUPPORT EMAIL]"

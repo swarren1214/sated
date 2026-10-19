@@ -23,6 +23,9 @@ struct AddFoodView: View {
     @State private var showsScanner = false
     @State private var showsVoice = false
     @State private var showsQuickAdd = false
+    @State private var purchases = HearthPurchases.shared
+    /// A paid feature tapped without Sated Plus or Hearth+.
+    @State private var paywallFeature: HearthPaywallFeature?
 
     init() {
         let start = Calendar.current.date(byAdding: .day, value: -120, to: .now) ?? .now
@@ -73,7 +76,13 @@ struct AddFoodView: View {
                         // when it planned eating out, that restaurant's menu.
                         if let planned = bigTable.plannedMeal(on: router.day, for: meal),
                            !planned.isLogged(in: dayEntries) {
-                            if let place = planned.restaurant {
+                            if !purchases.hasHearthPlus {
+                                // Logging BigTable's plan is the apps working together: Hearth+.
+                                HearthPlusTeaser(from: .bigtable, title: SatedPlans.plannedMealTeaserTitle, detail: SatedPlans.plannedMealTeaserDetail)
+                                    .listRowBackground(Color.clear)
+                                    .listRowInsets(EdgeInsets())
+                                    .listRowSeparator(.hidden)
+                            } else if let place = planned.restaurant {
                                 PlannedMealCard(meal: planned, estimate: nil) {
                                     path.append(EatOutRoute.place(known(place)))
                                 }
@@ -92,15 +101,19 @@ struct AddFoodView: View {
 
                         QuickActions(
                             scan: { showsScanner = true },
-                            voice: OnDeviceModel.isOffered ? { showsVoice = true } : nil,
+                            voice: OnDeviceModel.isOffered ? {
+                                if purchases.isUnlocked { showsVoice = true } else { paywallFeature = SatedPlans.sayIt }
+                            } : nil,
                             quickAdd: { showsQuickAdd = true },
-                            eatOut: { path.append(EatOutRoute.restaurants) }
+                            eatOut: {
+                                if purchases.isUnlocked { path.append(EatOutRoute.restaurants) } else { paywallFeature = SatedPlans.restaurantMenus }
+                            }
                         )
                         .listRowBackground(Color.clear)
                         .listRowInsets(EdgeInsets())
                         .listRowSeparator(.hidden)
 
-                        if let here = nearby.here {
+                        if purchases.isUnlocked, let here = nearby.here {
                             HereCard(place: here, hasMenu: nearby.hasMenu[here.name])
                                 .listRowBackground(Color.clear)
                                 .listRowInsets(EdgeInsets())
@@ -157,7 +170,7 @@ struct AddFoodView: View {
             .navigationDestination(for: EatOutRoute.self) { route in
                 switch route {
                 case .restaurants:
-                    RestaurantsView()
+                    if purchases.isUnlocked { RestaurantsView() } else { EatOutLockedView(place: nil) }
                 case .place(let place):
                     RestaurantMenuView(place: place, meal: meal) { router.finishAdding() }
                 case .estimate(let place):
@@ -166,7 +179,8 @@ struct AddFoodView: View {
             }
             .task {
                 // "You're at…" only when location is already allowed: Add Food never asks.
-                if Places.isAuthorized { await nearby.refresh() }
+                // Menus are Sated Plus or Hearth+, so nobody else is asked about places.
+                if Places.isAuthorized, purchases.isUnlocked { await nearby.refresh() }
             }
             .animation(.snappy, value: nearby.here)
             .fullScreenCover(isPresented: $showsScanner) {
@@ -181,6 +195,10 @@ struct AddFoodView: View {
             .sheet(item: $plannedPick) { pick in
                 PlannedMealSheet(pick: pick, meal: meal) { router.finishAdding() }
             }
+            .hearthPaywall(
+                isPresented: Binding(get: { paywallFeature != nil }, set: { if !$0 { paywallFeature = nil } }),
+                feature: paywallFeature
+            )
             .onAppear {
                 // Follows BigTable's plan from here on, and picks up changes made while away.
                 bigTable.start()

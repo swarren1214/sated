@@ -101,6 +101,7 @@ private struct DayLog: View {
     @Environment(FoodDatabase.self) private var database
     @State private var bigTable = BigTableMeals.shared
     @State private var plannedPick: PlannedPick?
+    @State private var purchases = HearthPurchases.shared
     @AppStorage(SettingsKey.goalCalories) private var goalCalories = Goals.defaults.calories
     @AppStorage(SettingsKey.goalProtein) private var goalProtein = Goals.defaults.protein
     @AppStorage(SettingsKey.goalCarbs) private var goalCarbs = Goals.defaults.carbs
@@ -133,6 +134,7 @@ private struct DayLog: View {
                     // iPad: the day's numbers on the left, its meals on the right.
                     VStack(alignment: .leading, spacing: 22) {
                         header
+                        HearthBillingBanner()
                         HStack(alignment: .top, spacing: 24) {
                             VStack(alignment: .leading, spacing: 22) { overview }
                                 .frame(maxWidth: .infinity)
@@ -144,6 +146,7 @@ private struct DayLog: View {
                 } else {
                     VStack(alignment: .leading, spacing: 22) {
                         header
+                        HearthBillingBanner()
                         overview
                         meals
                     }
@@ -173,9 +176,18 @@ private struct DayLog: View {
         HeaderTitle(router.dayTitle, subtitle: day.formatted(.dateTime.weekday(.wide).month(.wide).day().year()))
     }
 
-    /// What BigTable planned for an empty meal, and its estimate when it has recipes.
+    /// Whether BigTable planned anything still open today, for the Hearth+ teaser.
+    private var hasOpenPlannedMeal: Bool {
+        Meal.allCases.contains { meal in
+            guard entries.allSatisfy({ $0.meal != meal }), let planned = bigTable.plannedMeal(on: day, for: meal) else { return false }
+            return !planned.isLogged(in: entries)
+        }
+    }
+
+    /// What BigTable planned for an empty meal, and its estimate when it has recipes. Logging
+    /// BigTable's plan is the apps working together, so it's Hearth+.
     private func plan(for meal: Meal, entries: [FoodEntry]) -> (meal: HearthMealPlan.Meal, estimate: MealEstimate?)? {
-        guard entries.isEmpty, let planned = bigTable.plannedMeal(on: day, for: meal),
+        guard purchases.hasHearthPlus, entries.isEmpty, let planned = bigTable.plannedMeal(on: day, for: meal),
               !planned.isLogged(in: self.entries) else { return nil }
         return (planned, planned.isDineOut ? nil : bigTable.estimate(for: planned, database: database))
     }
@@ -233,6 +245,11 @@ private struct DayLog: View {
                 }
             }
             .background(Color(.secondarySystemGroupedBackground), in: .rect(cornerRadius: 22))
+            // Without Hearth+, one quiet note where BigTable's plan would have shown.
+            if !purchases.hasHearthPlus, hasOpenPlannedMeal {
+                HearthPlusTeaser(from: .bigtable, title: SatedPlans.plannedMealTeaserTitle, detail: SatedPlans.plannedMealTeaserDetail)
+                    .padding(.top, 8)
+            }
         }
     }
 }

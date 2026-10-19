@@ -7,6 +7,7 @@ struct CoachView: View {
     @Environment(\.modelContext) private var context
     @State private var draft = ""
     @State private var showsVoice = false
+    @State private var purchases = HearthPurchases.shared
     @FocusState private var composerFocused: Bool
 
     /// One line of the message field.
@@ -22,7 +23,11 @@ struct CoachView: View {
             ScrollView {
                 LazyVStack(spacing: 12) {
                     HeaderTitle("Coach", subtitle: "On this \(DeviceName.current)")
-                    if coach.messages.isEmpty {
+                    if !purchases.isUnlocked {
+                        // Coach (and asking out loud) is Sated Plus or Hearth+.
+                        HearthLockedCard(feature: SatedPlans.coach)
+                            .padding(.top, 8)
+                    } else if coach.messages.isEmpty {
                         intro
                     }
                     ForEach(coach.messages) { message in
@@ -66,7 +71,9 @@ struct CoachView: View {
                 .tint(.white)
             }
         }
-        .safeAreaInset(edge: .bottom) { composer }
+        .safeAreaInset(edge: .bottom) {
+            if purchases.isUnlocked { composer }
+        }
         // Asking out loud opens the full listening screen from the design.
         .fullScreenCover(isPresented: $showsVoice) {
             CoachVoiceView {
@@ -76,7 +83,7 @@ struct CoachView: View {
                 }
             }
         }
-        .onAppear { coach.prewarm() }
+        .onAppear { if purchases.isUnlocked { coach.prewarm() } }
     }
 
     private var intro: some View {

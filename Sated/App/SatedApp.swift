@@ -26,6 +26,27 @@ struct SatedApp: App {
         WatchBridge.shared.start(container: container)
         // One sign-in for every Hearth app: follow sign-ins and sign-outs in BigTable and Suffice.
         HearthSignIn.start()
+        // Sated Plus and Hearth+ (RevenueCat), following the same Hearth sign-in.
+        Self.configurePurchases()
+    }
+
+    /// Sated Plus or Hearth+ unlock Coach, label scanning, Say It, restaurant menus and all-time
+    /// trends; Hearth+ also the BigTable features. Screenshots show everything unlocked.
+    private static func configurePurchases() {
+        let purchases = HearthPurchases.shared
+        if ScreenshotMode.isOn { purchases.previewUnlocked = true }
+        guard AppConfig.purchasesConfigured || ScreenshotMode.isOn else { return }
+        purchases.configure(
+            app: .sated,
+            apiKey: AppConfig.revenueCatAPIKey,
+            apiBaseURL: AppConfig.apiBaseURL,
+            accessToken: {
+                // Only a Sign in with Apple session is a Hearth account; an anonymous one isn't.
+                guard await HearthAPI.shared.isSignedInWithApple else { return nil }
+                return try? await HearthAPI.shared.accessToken()
+            },
+            signInButton: { AnyView(AppleSignInButton().environment(AccountStore.shared)) }
+        )
     }
 
     var body: some Scene {
