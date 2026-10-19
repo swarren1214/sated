@@ -120,6 +120,18 @@ struct SettingsView: View {
 
             Section {
                 NavigationLink {
+                    HearthHouseholdView(accent: Accent.color)
+                } label: {
+                    HearthHouseholdLabel()
+                }
+            } header: {
+                Text("Household")
+            } footer: {
+                Text("Your allergies, diet, likes and dislikes, shared with your family's Hearth apps. Coach uses them to steer its suggestions.")
+            }
+
+            Section {
+                NavigationLink {
                     HearthAppsView(current: .sated)
                 } label: {
                     HearthAppsRowLabel(current: .sated)

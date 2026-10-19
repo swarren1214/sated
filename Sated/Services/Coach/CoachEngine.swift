@@ -152,6 +152,9 @@ final class CoachEngine {
 
     private let data: CoachData
     private var session: LanguageModelSession?
+    /// The instructions `session` was started with; a new session starts when they change
+    /// (BigTable's household restrictions changed).
+    private var sessionInstructions = ""
     private let log = Logger(subsystem: "com.stephenwarren.sated", category: "coach")
 
     init(data: CoachData) {
@@ -182,10 +185,77 @@ final class CoachEngine {
     }
 
     private func makeSession() -> LanguageModelSession {
-        LanguageModelSession(
+        let instructions = Self.currentInstructions()
+        sessionInstructions = instructions
+        return LanguageModelSession(
             tools: [DayTotalsTool(data: data), WeekTool(data: data), FoodLookupTool(data: data)],
-            instructions: Self.instructions
+            instructions: instructions
         )
+    }
+
+    /// Coach's rules, plus the household's food rules (the Hearth household, or BigTable's).
+    static func currentInstructions() -> String {
+        guard let notes = householdNotes() else { return instructions }
+        return instructions + "\n\n" + notes
+    }
+
+    /// The household's allergies and diets, and this person's likes and dislikes: from the Hearth
+    /// household when the family has one, otherwise from the household BigTable shares on this
+    /// device (`HearthFamily`). Nil when there's nothing.
+    static func householdNotes() -> String? {
+        guard !ScreenshotMode.isOn else { return nil }
+        let store = HearthHouseholdStore.shared
+        if store.exists { return hearthNotes(store) }
+        guard let family = Hearth.read(HearthFamily.self, from: .bigtable)?.value else { return nil }
+        func clean(_ list: [String]?) -> [String] {
+            (list ?? []).map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }.filter { !$0.isEmpty }
+        }
+        var lines: [String] = []
+        let restrictions = clean(family.dietaryRestrictions)
+        if !restrictions.isEmpty {
+            lines.append("- Household dietary restrictions: \(restrictions.joined(separator: "; ")). Never suggest a food that breaks one.")
+        }
+        if let me = family.me, let member = family.members.first(where: { $0.id == me }) {
+            let dislikes = clean(member.dislikes)
+            if !dislikes.isEmpty { lines.append("- This person dislikes \(dislikes.joined(separator: ", ")). Don't suggest these.") }
+            let likes = clean(member.likes)
+            if !likes.isEmpty { lines.append("- This person likes \(likes.joined(separator: ", ")).") }
+        }
+        guard !lines.isEmpty else { return nil }
+        return "From the household's BigTable profile:\n" + lines.joined(separator: "\n")
+    }
+
+    /// Notes from the Hearth household. Allergies are anyone's in the family (Coach may suggest
+    /// food for a shared meal); likes, dislikes and diet are this person's. No names.
+    private static func hearthNotes(_ store: HearthHouseholdStore) -> String? {
+        func clean(_ list: [String]) -> [String] {
+            var seen = Set<String>()
+            return list.map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+                .filter { !$0.isEmpty && seen.insert($0.lowercased()).inserted }
+        }
+        let context = store.aiContext()
+        var lines: [String] = []
+        let me = store.me
+        let myAllergies = clean(me?.allergies ?? [])
+        if !myAllergies.isEmpty {
+            lines.append("- This person is allergic to \(myAllergies.joined(separator: ", ")). Never suggest a food that contains one.")
+        }
+        let familyAllergies = clean(context.allergies).filter { allergy in !myAllergies.contains { $0.caseInsensitiveCompare(allergy) == .orderedSame } }
+        if !familyAllergies.isEmpty {
+            lines.append("- Someone in their household is allergic to \(familyAllergies.joined(separator: ", ")). Avoid these in food meant to share.")
+        }
+        let diet = clean((me?.diet ?? []) + (store.info?.restrictions ?? []))
+        if !diet.isEmpty {
+            lines.append("- Diet: \(diet.joined(separator: "; ")). Never suggest a food that breaks it.")
+        }
+        if let me {
+            let dislikes = clean(me.dislikes)
+            if !dislikes.isEmpty { lines.append("- This person dislikes \(dislikes.joined(separator: ", ")). Don't suggest these.") }
+            let likes = clean(me.likes)
+            if !likes.isEmpty { lines.append("- This person likes \(likes.joined(separator: ", ")).") }
+        }
+        guard !lines.isEmpty else { return nil }
+        return "From their Hearth household:\n" + lines.joined(separator: "\n")
     }
 
     func send(_ text: String) async {
@@ -211,8 +281,10 @@ final class CoachEngine {
     }
 
     private func respond(to question: String, retrying: Bool) async throws -> CoachReply {
+        if self.session == nil || sessionInstructions != Self.currentInstructions() {
+            self.session = makeSession()
+        }
         let session = self.session ?? makeSession()
-        self.session = session
         do {
             return try await session.respond(to: question, generating: CoachReply.self, options: GenerationOptions(temperature: 0.4)).content
         } catch {

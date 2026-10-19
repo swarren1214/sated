@@ -74,8 +74,52 @@ alert (`.alert` with a `role: .destructive` button and a Cancel button) rather t
 popup or popover (`.confirmationDialog`, action sheet, `.popover`), unless explicitly told
 otherwise.
 
+## Hearth household
+
+The family (people, photos, birthdays, allergies, diets, likes and dislikes) is the **Hearth
+household**: one record set in the family's iCloud (container `iCloud.com.stephenwarren.hearth`,
+zone `Household`), shared with the family by a CKShare. `HearthHouseholdStore.shared` reads and
+edits it, and every Hearth app on the device sees changes at once through the app group.
+`HearthHouseholdView`, `HearthPersonView`, `HearthPersonEditor` and `HearthInviteSheet` are the
+screens for it; don't build app-specific versions.
+
+- **Privacy rules (never break these):**
+  - Family profiles never go to a Hearth server. The server may hold membership (who's in a
+    household, a seat id and a name where a feature needs one), nothing more.
+  - Birthdays, allergies, diets, likes, dislikes and household restrictions are stored in
+    CloudKit `encryptedValues`. A new sensitive field goes there too.
+  - An AI request gets only `store.aiContext()` (`HearthAIContext`): ages, roles and food rules,
+    no names, no photos, no birthdays, for that one request. Nothing is logged or saved.
+  - Never put household data in analytics, logs (`privacy: .public`), crash reports or
+    notifications' text beyond a first name.
+- **Allergies are hard rules.** Anything that suggests food must never suggest one.
+- **There is always a household** (a household of one is fine). New people get HearthKit's
+  `HearthHouseholdOnboarding` step in onboarding; the root has
+  `.hearthHouseholdRequired(isActive:accent:)` so nobody uses the app without one. Never build
+  an app-specific person editor or a no-household fallback.
+- **One invite for everything.** An app that shares its own data does it as an app zone in the
+  Hearth container (`HearthZoneParticipant` + `HearthAppSharing`), shared automatically with the
+  household. Never create another CKShare or invitation flow.
+- **One entry, named "Household"** (`HearthHouseholdLabel.title`, symbol
+  `HearthHouseholdLabel.symbol`), at the top of Settings or Profile, opening
+  `HearthHouseholdView`. App-specific details about a person go on their page through
+  `.environment(\.hearthPersonExtras)`, not on a separate screen.
+- **The app's own people mirror the household.** Keep the app's model (Caloma's `Member`, etc.)
+  and link it by Hearth id: `store.localID(of:app:among:)` to find a person's record here,
+  `store.linkHere(_:app:localID:)` to link one (shared link when the app's data is the family's,
+  per-device link otherwise), `store.member(app:appID:)` to go back. Only add people when
+  `store.canEditEveryone`, so two phones don't both create one.
+- **Edits go through the household.** For a linked person, edit with `HearthPersonEditor`; the
+  mirror copies the change into the app.
+- Invitations: the root view has `.hearthHouseholdInvitations()`, and the scene delegate hands
+  CKShare metadata for the Hearth container to `HearthHouseholdStore.shared.receive` (see
+  `HearthHouseholdStore.handles`).
+- **In Sated:** Coach reads the household (`CoachEngine.hearthNotes`): this person's allergies are hard rules, the family's allergies apply to food meant to share, and this person's diet, likes and dislikes steer suggestions. No names go into Coach's instructions. Settings › Household opens the shared screens.
+
 ## Shared Hearth code
 
-`Services/Hearth/HearthShared.swift`, `Services/Hearth/HearthApps.swift` and
-`Assets.xcassets/Hearth` are copies. Edit the originals in `~/Developer/hearthkit` and run its
-`sync.sh`.
+These are copies: in `Services/Hearth/`, `HearthShared.swift`, `HearthApps.swift`,
+`HearthSync.swift`, `HearthPicker.swift`, `HearthIconLibrary.swift`, `HearthAccount.swift` and the
+four `HearthHousehold*.swift` files, plus `Assets.xcassets/Hearth`. Edit the originals in
+`~/Developer/hearthkit` and run `bash sync.sh` there; never edit a copy. App-specific Hearth code
+(such as `HearthLink.swift`) also lives in `Services/Hearth/` and isn't touched by the sync.

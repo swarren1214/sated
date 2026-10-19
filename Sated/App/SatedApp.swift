@@ -35,6 +35,9 @@ struct SatedApp: App {
                     await HearthAPI.shared.prepareSession()
                     await AccountStore.shared.refresh()
                 }
+                // The Hearth household: Coach reads its food rules, and invitations land here.
+                .task { if !ScreenshotMode.isOn { HearthHouseholdStore.shared.start(app: .sated) } }
+                .hearthHouseholdInvitations()
                 .environment(router)
                 .environment(account)
                 .environment(coach)
@@ -152,6 +155,9 @@ struct AppRoot: View {
                 SignInView()
                     .tint(Accent.color)
             }
+            // Every Hearth app works inside a household; after sign-in, the household step if
+            // there's none yet.
+            .hearthHouseholdRequired(isActive: !account.showsSignInScreen && account.status != .unknown && !ScreenshotMode.isOn, accent: Accent.color)
             // Health's permission sheet waits until the sign-in screen is out of the way.
             .task(id: account.status == .unknown || account.showsSignInScreen) {
                 guard account.status != .unknown, !account.showsSignInScreen else { return }

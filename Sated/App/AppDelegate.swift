@@ -11,4 +11,11 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
         }
         return true
     }
+
+    /// Household invitations (iCloud) arrive through the scene delegate.
+    func application(_ application: UIApplication, configurationForConnecting connectingSceneSession: UISceneSession, options: UIScene.ConnectionOptions) -> UISceneConfiguration {
+        let configuration = UISceneConfiguration(name: nil, sessionRole: connectingSceneSession.role)
+        configuration.delegateClass = HearthHouseholdSceneDelegate.self
+        return configuration
+    }
 }
