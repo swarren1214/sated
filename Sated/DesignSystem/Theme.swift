@@ -14,9 +14,9 @@ nonisolated enum SettingsKey {
     static let spokenReplies = "coach.spokenReplies"
 }
 
-/// Sated's tint everywhere: the orange of its icon. (It used to be a setting, Accent Color.)
+/// Sated's tint everywhere: the warm amber at the base of its icon's gradient. (It used to be a setting, Accent Color.)
 enum Accent {
-    static let color = Color(hex: 0xE8650F)
+    static let color = Color(hex: 0xDA8300)
 }
 
 /// Settings › Appearance.

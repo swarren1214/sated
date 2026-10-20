@@ -415,7 +415,7 @@ struct MenuItemSheet: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel", systemImage: "xmark") { dismiss() }
+                    SheetCancelButton { dismiss() }
                 }
             }
             .safeAreaInset(edge: .bottom) {
@@ -498,7 +498,7 @@ struct PlateReview: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Close", systemImage: "xmark") { dismiss() }
+                    SheetCancelButton("Close") { dismiss() }
                 }
                 ToolbarItem(placement: .destructiveAction) {
                     Button("Clear", role: .destructive) {

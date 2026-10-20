@@ -254,7 +254,7 @@ private struct EstimateSheet: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel", systemImage: "xmark") { dismiss() }
+                    SheetCancelButton { dismiss() }
                 }
             }
             .safeAreaInset(edge: .bottom) {
@@ -303,7 +303,7 @@ struct MenuTextScanner: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel", systemImage: "xmark") { dismiss() }
+                    SheetCancelButton { dismiss() }
                 }
             }
         }

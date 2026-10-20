@@ -141,7 +141,7 @@ struct PlannedMealSheet: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel", systemImage: "xmark") { dismiss() }
+                    SheetCancelButton { dismiss() }
                 }
             }
             .safeAreaInset(edge: .bottom) {

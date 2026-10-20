@@ -52,6 +52,8 @@ struct SatedApp: App {
     var body: some Scene {
         WindowGroup {
             AppRoot()
+                // The Hearth launch splash.
+                .hearthSplash(.sated, isEnabled: !ScreenshotMode.isOn)
                 .task {
                     await HearthAPI.shared.prepareSession()
                     await AccountStore.shared.refresh()

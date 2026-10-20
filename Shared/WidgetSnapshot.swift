@@ -115,7 +115,7 @@ nonisolated struct WidgetSnapshot: Codable, Hashable, Sendable {
             ],
             week: week,
             streak: 12,
-            accent: RGB(red: 0xE8 / 255, green: 0x65 / 255, blue: 0x0F / 255)
+            accent: RGB(red: 0xDA / 255, green: 0x83 / 255, blue: 0x00 / 255)
         )
     }()
 }

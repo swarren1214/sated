@@ -40,6 +40,13 @@ struct SettingsView: View {
                 HearthMembershipRow()
             }
 
+            Section("iCloud") {
+                HearthSyncCard(app: .sated, snapshot: SyncMonitor.shared.snapshot, summary: "Your food log and goals") {
+                    await SyncMonitor.shared.syncNow()
+                }
+                .hearthSyncCardRow()
+            }
+
             Section {
                 GoalRow(title: "Calories", unit: "kcal", color: Accent.color, value: $goalCalories, range: 1200...6000, step: 50)
                 GoalRow(title: "Protein", unit: "g", color: Macro.protein.color, value: $goalProtein, range: 20...400, step: 5)
@@ -106,13 +113,6 @@ struct SettingsView: View {
                 .pickerStyle(.segmented)
             }
 
-            Section("iCloud") {
-                HearthSyncCard(app: .sated, snapshot: SyncMonitor.shared.snapshot, summary: "Your food log and goals") {
-                    await SyncMonitor.shared.syncNow()
-                }
-                .hearthSyncCardRow()
-            }
-
             Section {
                 ShareLink(item: CSVExport(text: FoodLog.csv(in: context)), preview: SharePreview("Sated food log")) {
                     Label("Export as CSV", systemImage: "square.and.arrow.up")
@@ -177,7 +177,7 @@ struct SettingsView: View {
         .navigationTitle("Settings")
         .toolbar {
             ToolbarItem(placement: .confirmationAction) {
-                Button("Done", systemImage: "checkmark", role: .confirm) { dismiss() }
+                SheetDoneButton { dismiss() }
             }
         }
     }

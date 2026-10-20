@@ -133,7 +133,7 @@ nonisolated struct WatchSnapshot: Codable, Hashable, Sendable {
         goalCalories: 2400, goalProtein: 180, goalCarbs: 240, goalFat: 75, goalFiber: 35,
         usuals: [:],
         appliedLogIDs: [],
-        accent: WidgetSnapshot.RGB(red: 0xE8 / 255, green: 0x65 / 255, blue: 0x0F / 255)
+        accent: WidgetSnapshot.RGB(red: 0xDA / 255, green: 0x83 / 255, blue: 0x00 / 255)
     )
 }
 
