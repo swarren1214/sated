@@ -23,8 +23,13 @@ enum AppConfig {
     nonisolated static var purchasesConfigured: Bool { revenueCatAPIKey != "REVENUECAT_PUBLIC_KEY" }
 
     /// Open Food Facts asks every app to identify itself as "AppName/Version (ContactEmail)".
-    /// Replace the placeholder with a real support address before TestFlight.
-    static let contactEmail = "[SUPPORT EMAIL]"
+    static let contactEmail = "support@hearthapps.com"
+
+    /// Settings › Help & Legal.
+    static let supportEmailURL = URL(string: "mailto:support@hearthapps.com")!
+    static let supportURL = URL(string: "https://hearthapps.com/support")!
+    static let privacyURL = URL(string: "https://hearthapps.com/privacy")!
+    static let termsURL = URL(string: "https://hearthapps.com/terms")!
 
     static var userAgent: String {
         let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "0.1"

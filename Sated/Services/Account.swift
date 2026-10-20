@@ -2,6 +2,7 @@ import AuthenticationServices
 import Foundation
 import Observation
 import OSLog
+import SwiftData
 
 /// Who's signed in, for the sign-in screen and Settings › Account.
 ///
@@ -91,6 +92,17 @@ final class AccountStore {
         // Offer the sign-in screen again.
         skipped = false
         status = .signedOut
+    }
+
+    /// Settings › Account › Delete Account: deletes the Hearth account on the server (for every
+    /// Hearth app), then erases Sated's own data (`SatedDataEraser`), then signs out of every
+    /// Hearth app as Sign Out does. When the server refuses, it throws and nothing changes here.
+    func deleteAccount(erasing context: ModelContext) async throws {
+        guard isSignedIn, !ScreenshotMode.isOn else { return }
+        try await HearthAPI.shared.deleteAccount()
+        log.notice("Hearth account deleted; erasing Sated's data and signing out")
+        await SatedDataEraser.eraseAll(in: context)
+        await signOut()
     }
 
     /// "Not now" on the sign-in screen.

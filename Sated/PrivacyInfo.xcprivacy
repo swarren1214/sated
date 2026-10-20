@@ -7,20 +7,91 @@
 	<false/>
 	<key>NSPrivacyTrackingDomains</key>
 	<array/>
-	<!-- Nothing is collected by the developer: food logs stay on the device or in the person's
-	     own private iCloud database. Barcode lookups send only the barcode number to Open Food
-	     Facts. Revisit if analytics, crash reporting or a server are added. -->
+	<!-- What leaves the device for the Hearth API (api.hearthapps.com, Supabase) or RevenueCat.
+	     The food log, goals, Apple Health data and the Hearth household stay on the device and in
+	     the person's own iCloud, and Coach runs on the device, so none of them are listed.
+	     Scanned barcodes go to Open Food Facts with no identifier: product lookups, not personal
+	     data. Revisit if analytics, crash reporting or new server features are added. -->
 	<key>NSPrivacyCollectedDataTypes</key>
-	<array/>
+	<array>
+		<!-- The Hearth account's user ID (an anonymous Supabase session, or Sign in with Apple)
+		     sent with every API request, and RevenueCat's customer ID. -->
+		<dict>
+			<key>NSPrivacyCollectedDataType</key>
+			<string>NSPrivacyCollectedDataTypeUserID</string>
+			<key>NSPrivacyCollectedDataTypeLinked</key>
+			<true/>
+			<key>NSPrivacyCollectedDataTypeTracking</key>
+			<false/>
+			<key>NSPrivacyCollectedDataTypePurposes</key>
+			<array>
+				<string>NSPrivacyCollectedDataTypePurposeAppFunctionality</string>
+			</array>
+		</dict>
+		<!-- Sign in with Apple: the email address Apple shares (possibly a private relay address)
+		     is stored with the Hearth account. -->
+		<dict>
+			<key>NSPrivacyCollectedDataType</key>
+			<string>NSPrivacyCollectedDataTypeEmailAddress</string>
+			<key>NSPrivacyCollectedDataTypeLinked</key>
+			<true/>
+			<key>NSPrivacyCollectedDataTypeTracking</key>
+			<false/>
+			<key>NSPrivacyCollectedDataTypePurposes</key>
+			<array>
+				<string>NSPrivacyCollectedDataTypePurposeAppFunctionality</string>
+			</array>
+		</dict>
+		<!-- Sated Plus and Hearth+ purchases, through RevenueCat. -->
+		<dict>
+			<key>NSPrivacyCollectedDataType</key>
+			<string>NSPrivacyCollectedDataTypePurchaseHistory</string>
+			<key>NSPrivacyCollectedDataTypeLinked</key>
+			<true/>
+			<key>NSPrivacyCollectedDataTypeTracking</key>
+			<false/>
+			<key>NSPrivacyCollectedDataTypePurposes</key>
+			<array>
+				<string>NSPrivacyCollectedDataTypePurposeAppFunctionality</string>
+			</array>
+		</dict>
+		<!-- Restaurant lookups: the names of nearby restaurants, or one the person picks, to find
+		     menus, and a restaurant's web address or chain name for its logo. Sent with the
+		     account's token, so linked. -->
+		<dict>
+			<key>NSPrivacyCollectedDataType</key>
+			<string>NSPrivacyCollectedDataTypeSearchHistory</string>
+			<key>NSPrivacyCollectedDataTypeLinked</key>
+			<true/>
+			<key>NSPrivacyCollectedDataTypeTracking</key>
+			<false/>
+			<key>NSPrivacyCollectedDataTypePurposes</key>
+			<array>
+				<string>NSPrivacyCollectedDataTypePurposeAppFunctionality</string>
+			</array>
+		</dict>
+	</array>
 	<key>NSPrivacyAccessedAPITypes</key>
 	<array>
-		<!-- UserDefaults (and @AppStorage): goals and settings, read only by Sated itself. -->
+		<!-- UserDefaults (and @AppStorage): goals and settings, read only by Sated itself (CA92.1);
+		     and the Hearth app group's suite (group.com.stephenwarren.hearth), shared with the
+		     other Hearth apps for the household (1C8F.1). -->
 		<dict>
 			<key>NSPrivacyAccessedAPIType</key>
 			<string>NSPrivacyAccessedAPICategoryUserDefaults</string>
 			<key>NSPrivacyAccessedAPITypeReasons</key>
 			<array>
 				<string>CA92.1</string>
+				<string>1C8F.1</string>
+			</array>
+		</dict>
+		<!-- File timestamps: the age of Sated's own cached menus and logos in Caches (C617.1). -->
+		<dict>
+			<key>NSPrivacyAccessedAPIType</key>
+			<string>NSPrivacyAccessedAPICategoryFileTimestamp</string>
+			<key>NSPrivacyAccessedAPITypeReasons</key>
+			<array>
+				<string>C617.1</string>
 			</array>
 		</dict>
 	</array>

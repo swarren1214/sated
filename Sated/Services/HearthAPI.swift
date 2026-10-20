@@ -131,6 +131,41 @@ actor HearthAPI {
         return try JSONDecoder().decode(Identity.self, from: data)
     }
 
+    /// The API's error body: `{"error":{"code":"…","message":"…"}}`.
+    nonisolated private struct APIErrorBody: Decodable, Sendable {
+        nonisolated struct Detail: Decodable, Sendable {
+            var code: String?
+            var message: String?
+        }
+        var error: Detail
+    }
+
+    /// Settings › Account › Delete Account: `DELETE /v1/me` deletes the person's Hearth account
+    /// and its data in every Hearth app. Only for a Sign in with Apple session, never an
+    /// anonymous one. Throws a readable error, and nothing is deleted, when it fails.
+    func deleteAccount() async throws {
+        var token = try await accessToken()
+        // Getting a token can fall back to a new anonymous session; never delete that instead.
+        guard isSignedInWithApple else { throw ClientError.service(Self.signInAgainMessage) }
+        var result = try await apiRequest(path: "/v1/me", method: "DELETE", body: nil, accessToken: token)
+        if result.response.statusCode == 401 {
+            token = try await accessToken(renew: true)
+            guard isSignedInWithApple else { throw ClientError.service(Self.signInAgainMessage) }
+            result = try await apiRequest(path: "/v1/me", method: "DELETE", body: nil, accessToken: token)
+        }
+        let status = result.response.statusCode
+        guard (200..<300).contains(status) else {
+            let detail = (try? JSONDecoder().decode(APIErrorBody.self, from: result.data))?.error
+            if detail?.code == "HOUSEHOLD_HAS_MEMBERS" {
+                throw ClientError.service("Remove the other people from your household in BigTable first.")
+            }
+            if status == 429 { throw ClientError.rateLimited }
+            throw ClientError.service(detail?.message ?? "Your account couldn't be deleted right now (error \(status)). Try again in a moment.")
+        }
+    }
+
+    nonisolated private static let signInAgainMessage = "Your sign-in has expired. Sign in with Apple again, then delete your account."
+
     func createPlaidLinkToken() async throws -> Data {
         try await authorizedData(path: "/v1/banking/link-token", method: "POST", body: Data("{}".utf8))
     }

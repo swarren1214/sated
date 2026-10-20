@@ -102,6 +102,17 @@ actor LogoStore {
         return image
     }
 
+    /// Settings › Erase Sated Data: forgets every saved logo, here and in Caches.
+    func clear() {
+        for task in downloads.values { task.cancel() }
+        downloads = [:]
+        memory = [:]
+        urls = [:]
+        failedAt = [:]
+        apiFailedAt = nil
+        try? FileManager.default.removeItem(at: directory)
+    }
+
     // MARK: Fetching
 
     private func fetch(_ key: LogoKey) async -> UIImage? {

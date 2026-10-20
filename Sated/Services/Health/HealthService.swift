@@ -82,6 +82,21 @@ final class HealthService {
         }
     }
 
+    /// Settings › Erase Sated Data: removes every sample Sated wrote to Health (anything whose
+    /// source is this app), including ones whose entry is already gone. Samples other apps or
+    /// the person entered are never touched.
+    func removeAll() async {
+        guard isAvailable, !ScreenshotMode.isOn else { return }
+        let predicate = HKQuery.predicateForObjects(from: HKSource.default())
+        for type in writeTypes where store.authorizationStatus(for: type) == .sharingAuthorized {
+            do {
+                _ = try await store.deleteObjects(of: type, predicate: predicate)
+            } catch {
+                log.error("Couldn't remove Sated's samples from Health: \(error.localizedDescription, privacy: .public)")
+            }
+        }
+    }
+
     func update(_ entry: EntryRecord) async {
         await remove(entryID: entry.id)
         await save(entry)

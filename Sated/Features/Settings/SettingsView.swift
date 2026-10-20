@@ -23,6 +23,8 @@ struct SettingsView: View {
     @State private var model = KokoroModel.shared
     @State private var speaker = CoachSpeaker.shared
     @AppStorage(SettingsKey.appearance) private var appearance: AppearanceOption = .system
+    @State private var confirmsErase = false
+    @State private var isErasing = false
 
     private var appVersion: String {
         let info = Bundle.main.infoDictionary
@@ -114,16 +116,6 @@ struct SettingsView: View {
             }
 
             Section {
-                ShareLink(item: CSVExport(text: FoodLog.csv(in: context)), preview: SharePreview("Sated food log")) {
-                    Label("Export as CSV", systemImage: "square.and.arrow.up")
-                }
-            } header: {
-                Text("Your Data")
-            } footer: {
-                Text("Your log lives on this \(DeviceName.current) and in your private iCloud. When you look up a restaurant, only its name is sent to get the menu; nothing you log ever leaves your devices.")
-            }
-
-            Section {
                 NavigationLink {
                     HearthHouseholdView(accent: Accent.color)
                 } label: {
@@ -140,6 +132,55 @@ struct SettingsView: View {
                     HearthAppsView(current: .sated)
                 } label: {
                     HearthAppsRowLabel(current: .sated)
+                }
+            }
+
+            Section {
+                ShareLink(item: CSVExport(text: FoodLog.csv(in: context)), preview: SharePreview("Sated food log")) {
+                    Label("Export as CSV", systemImage: "square.and.arrow.up")
+                }
+                Button(role: .destructive) {
+                    confirmsErase = true
+                } label: {
+                    HStack {
+                        Text("Erase Sated Data")
+                        if isErasing {
+                            Spacer()
+                            ProgressView()
+                        }
+                    }
+                }
+                .disabled(isErasing)
+            } header: {
+                Text("Your Data")
+            } footer: {
+                Text("Your log lives on this \(DeviceName.current) and in your private iCloud, not on our servers. To find menus, Sated sends the names of nearby restaurants (or one you pick); for logos, a restaurant's web address or chain name. Scanned barcodes go to Open Food Facts.")
+            }
+            .alert("Erase all Sated data?", isPresented: $confirmsErase) {
+                Button("Erase", role: .destructive) {
+                    isErasing = true
+                    Task {
+                        await SatedDataEraser.eraseAll(in: context)
+                        isErasing = false
+                    }
+                }
+                Button("Cancel", role: .cancel) {}
+            } message: {
+                Text("This deletes your food log, the meals Sated saved to Apple Health, and your goals and settings, on this \(DeviceName.current) and your other devices through iCloud. Your Hearth account and household aren't affected. This can't be undone.")
+            }
+
+            Section("Help & Legal") {
+                Link(destination: AppConfig.supportURL) {
+                    Label("Help & Support", systemImage: "questionmark.circle")
+                }
+                Link(destination: AppConfig.supportEmailURL) {
+                    Label("Email support@hearthapps.com", systemImage: "envelope")
+                }
+                Link(destination: AppConfig.privacyURL) {
+                    Label("Privacy Policy", systemImage: "hand.raised")
+                }
+                Link(destination: AppConfig.termsURL) {
+                    Label("Terms of Use", systemImage: "doc.text")
                 }
             }
 
@@ -189,12 +230,16 @@ struct SettingsView: View {
     }
 }
 
-/// Settings › Account: the shared Hearth account section (HearthAccount.swift): who's signed in
-/// and Sign Out, or Sign in with Apple when signed out.
+/// Settings › Account: the shared Hearth account section (HearthAccount.swift): who's signed in,
+/// Sign Out and Delete Account, or Sign in with Apple when signed out.
 private struct AccountSection: View {
     @Environment(AccountStore.self) private var account
+    @Environment(\.modelContext) private var context
     @State private var confirmsSignOut = false
     @State private var isSigningOut = false
+    @State private var confirmsDelete = false
+    @State private var isDeleting = false
+    @State private var deleteError: String?
 
     var body: some View {
         Section {
@@ -205,14 +250,16 @@ private struct AccountSection: View {
                 HearthAccountSection(
                     app: .sated,
                     profile: profile,
-                    pitch: "Sign in to use one account across Sated, BigTable and Suffice. Your food log stays in your iCloud, and everything in Sated works without it."
-                ) {
-                    AppleSignInButton()
-                } onSignOut: {
-                    confirmsSignOut = true
-                }
+                    pitch: "Sign in to use one account across Sated, BigTable and Suffice. Your food log stays in your iCloud, and everything in Sated works without it.",
+                    signInButton: { AppleSignInButton() },
+                    onSignOut: { confirmsSignOut = true },
+                    onDeleteAccount: deleteAction
+                )
                 .hearthAccountSectionRow()
-                .disabled(isSigningOut)
+                .disabled(isSigningOut || isDeleting)
+                if isDeleting {
+                    LabeledContent("Deleting Your Account") { ProgressView() }
+                }
             }
         } header: {
             HStack {
@@ -238,6 +285,34 @@ private struct AccountSection: View {
         } message: {
             Text("This also signs you out of BigTable and Suffice on this \(DeviceName.current). Your food log stays on this \(DeviceName.current) and in iCloud.")
         }
+        .alert("Delete your Hearth account?", isPresented: $confirmsDelete) {
+            Button("Delete Account", role: .destructive) {
+                isDeleting = true
+                Task {
+                    do {
+                        try await account.deleteAccount(erasing: context)
+                    } catch {
+                        deleteError = error.localizedDescription
+                    }
+                    isDeleting = false
+                }
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("This permanently deletes your Hearth account and what it holds in every Hearth app, such as BigTable recipes, Hearken posts and Suffice bank connections. Sated then erases your food log, the meals it saved to Apple Health, and your goals on all your devices, and signs you out of every Hearth app. This can't be undone. A subscription keeps renewing until you cancel it in Settings › Apple Account › Subscriptions.")
+        }
+        .alert("Couldn't Delete Your Account", isPresented: Binding(get: { deleteError != nil }, set: { if !$0 { deleteError = nil } })) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(deleteError ?? "")
+        }
+    }
+
+    /// Delete Account is offered only to someone signed in with Apple (`.signedIn` is never an
+    /// anonymous session).
+    private var deleteAction: (() -> Void)? {
+        guard account.isSignedIn, !ScreenshotMode.isOn else { return nil }
+        return { confirmsDelete = true }
     }
 
     private var profile: HearthAccountProfile? {

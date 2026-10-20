@@ -30,7 +30,11 @@ enum CloudSettings {
         let center = NotificationCenter.default
         observers.append(center.addObserver(forName: NSUbiquitousKeyValueStore.didChangeExternallyNotification, object: NSUbiquitousKeyValueStore.default, queue: .main) { note in
             let changed = note.userInfo?[NSUbiquitousKeyValueStoreChangedKeysKey] as? [String]
-            MainActor.assumeIsolated { pull(changed ?? keys) }
+            // A key that changed on the server and is now missing was erased on another device
+            // (Settings › Erase Sated Data): erase it here too.
+            let reason = note.userInfo?[NSUbiquitousKeyValueStoreChangeReasonKey] as? Int
+            let erasesMissing = changed != nil && reason == NSUbiquitousKeyValueStoreServerChange
+            MainActor.assumeIsolated { pull(changed ?? keys, erasingMissing: erasesMissing) }
         })
         observers.append(center.addObserver(forName: UserDefaults.didChangeNotification, object: UserDefaults.standard, queue: .main) { _ in
             MainActor.assumeIsolated { push() }
@@ -42,12 +46,29 @@ enum CloudSettings {
         push()
     }
 
-    /// iCloud → UserDefaults, which @AppStorage views follow.
-    private static func pull(_ changed: [String]) {
+    /// Settings › Erase Sated Data: removes these settings here and from iCloud, so every device
+    /// goes back to the defaults.
+    static func erase() {
+        let cloud = NSUbiquitousKeyValueStore.default
+        let defaults = UserDefaults.standard
+        for key in keys {
+            defaults.removeObject(forKey: key)
+            // Screenshot mode never touches the person's iCloud.
+            if !ScreenshotMode.isOn { cloud.removeObject(forKey: key) }
+        }
+        if !ScreenshotMode.isOn { cloud.synchronize() }
+    }
+
+    /// iCloud → UserDefaults, which @AppStorage views follow. `erasingMissing` removes a key
+    /// here when iCloud no longer has it (erased on another device).
+    private static func pull(_ changed: [String], erasingMissing: Bool = false) {
         let cloud = NSUbiquitousKeyValueStore.default
         let defaults = UserDefaults.standard
         for key in changed where keys.contains(key) {
-            guard let value = cloud.object(forKey: key) else { continue }
+            guard let value = cloud.object(forKey: key) else {
+                if erasingMissing, defaults.object(forKey: key) != nil { defaults.removeObject(forKey: key) }
+                continue
+            }
             if !same(value, defaults.object(forKey: key)) { defaults.set(value, forKey: key) }
         }
     }

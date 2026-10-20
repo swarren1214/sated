@@ -17,8 +17,8 @@ Requires Xcode 26 and iOS 26 or iPadOS 26. iPhone and iPad, with a companion App
 3. If `com.stephenwarren.sated` isn't available to your team, change the **Bundle Identifier**,
    then update the iCloud container in `Sated.entitlements` and `AppConfig.cloudKitContainerID`
    to match (`iCloud.<your bundle id>`).
-4. Set `AppConfig.contactEmail` to a real support address. Open Food Facts asks every app to
-   identify itself with one.
+4. `AppConfig.contactEmail` is support@hearthapps.com, which Open Food Facts asks every app to
+   identify itself with.
 5. Run on an iPhone. The camera, Health and the on-device model need a real device; the
    simulator covers everything else. Previews load a sample week (App/PreviewSupport.swift).
 

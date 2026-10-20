@@ -111,6 +111,15 @@ actor RestaurantStore {
         }
     }
 
+    /// Settings › Erase Sated Data: forgets every saved menu and lookup, here and in Caches.
+    func clear() {
+        for task in inFlight.values { task.cancel() }
+        inFlight = [:]
+        menus = [:]
+        lookups = nil
+        try? FileManager.default.removeItem(at: directory)
+    }
+
     // MARK: Lookups
 
     /// What's known, without asking: true for a chain with a menu, false for none, nil unknown.
