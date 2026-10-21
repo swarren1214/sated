@@ -2,7 +2,6 @@ import SwiftUI
 
 /// Keys for settings stored with @AppStorage. Keep every key here so views stay in sync.
 nonisolated enum SettingsKey {
-    static let appearance = "settings.appearance"
     static let goalCalories = "goals.calories"
     static let goalProtein = "goals.protein"
     static let goalCarbs = "goals.carbs"
@@ -17,14 +16,6 @@ nonisolated enum SettingsKey {
 /// Sated's tint everywhere: the warm amber at the base of its icon's gradient. (It used to be a setting, Accent Color.)
 enum Accent {
     static let color = Color(hex: 0xDA8300)
-}
-
-/// Settings › Appearance.
-enum AppearanceOption: String, CaseIterable, Identifiable {
-    case system, light, dark
-
-    var id: String { rawValue }
-    var name: String { rawValue.capitalized }
 }
 
 /// The four tracked macros. Each keeps one color everywhere: rings, bars, charts and labels.

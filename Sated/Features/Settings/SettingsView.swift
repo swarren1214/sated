@@ -2,7 +2,7 @@ import SwiftData
 import SwiftUI
 import UniformTypeIdentifiers
 
-/// Profile: the shared Hearth Profile with Sated's goals, Apple Health, Coach and appearance.
+/// Profile: the shared Hearth Profile with Sated's goals, Apple Health and Coach.
 struct SettingsView: View {
     @Environment(\.modelContext) private var context
     @Environment(AccountStore.self) private var account
@@ -22,7 +22,6 @@ struct SettingsView: View {
     @AppStorage(SettingsKey.coachPause) private var coachPause = CoachPause.medium.seconds
     @State private var model = KokoroModel.shared
     @State private var speaker = CoachSpeaker.shared
-    @AppStorage(SettingsKey.appearance) private var appearance: AppearanceOption = .system
 
     var body: some View {
         // The shared Hearth Profile (HearthProfile.swift), with Sated's own sections in the middle.
@@ -63,7 +62,8 @@ struct SettingsView: View {
         return HearthAccountProfile(name: name, email: email)
     }
 
-    /// Sated's own settings: goals, Apple Health, Coach and appearance.
+    /// Sated's own settings: goals, Apple Health and Coach. (Appearance is in the shared
+    /// Profile, HearthProfile.swift.)
     @ViewBuilder
     private var satedSections: some View {
         Section {
@@ -129,13 +129,6 @@ struct SettingsView: View {
         }
 
         MealRemindersSection()
-
-        Section("Appearance") {
-            Picker("Appearance", selection: $appearance) {
-                ForEach(AppearanceOption.allCases) { Text($0.name).tag($0) }
-            }
-            .pickerStyle(.segmented)
-        }
     }
 
     /// Calories implied by the macro goals, so mismatched goals are easy to spot.

@@ -1,3 +1,4 @@
+import Combine
 import SwiftData
 import SwiftUI
 import UIKit
@@ -161,16 +162,23 @@ final class AppRouter {
     }
 }
 
-/// Applies the tint and appearance, and keeps Health and the coach warmed up.
+/// Applies the tint, and keeps Health and the coach warmed up.
 struct AppRoot: View {
     @Environment(\.scenePhase) private var scenePhase
     @Environment(HealthService.self) private var health
     @Environment(AccountStore.self) private var account
     @Environment(\.modelContext) private var context
-    @AppStorage(SettingsKey.appearance) private var appearance: AppearanceOption = .system
     @AppStorage(SettingsKey.onboardingDone) private var onboardingDone = false
     /// Whether someone who used Sated before onboarding existed has been let through.
     @State private var gateChecked = false
+
+    /// Onboarding's done for this person on another device: none of it here, and "Not now" on
+    /// the sign-in stays chosen if they chose it there.
+    private func skipOnboarding() {
+        HearthOnboarding.finishWithoutSteps(.sated)
+        if NSUbiquitousKeyValueStore.default.bool(forKey: SettingsKey.signInSkipped) { account.skipSignIn() }
+        onboardingDone = true
+    }
 
     /// A new install: the onboarding flow (it starts with the sign-in, which is optional).
     private var showsOnboarding: Bool {
@@ -196,7 +204,18 @@ struct AppRoot: View {
             .task {
                 let entries = (try? context.fetchCount(FetchDescriptor<FoodEntry>())) ?? 0
                 OnboardingGate.markDoneForExistingUsers(hasEntries: entries > 0)
+                if onboardingDone {
+                    // Also for people who onboarded before iCloud remembered it.
+                    HearthOnboarding.rememberInCloud(.sated)
+                } else if !ScreenshotMode.isOn, await HearthOnboarding.waitForOtherDevices(.sated, timeout: .seconds(3)) {
+                    // Done on their other device: not again here.
+                    skipOnboarding()
+                }
                 gateChecked = true
+            }
+            // Finished on another device while onboarding is showing here.
+            .onReceive(NotificationCenter.default.publisher(for: NSUbiquitousKeyValueStore.didChangeExternallyNotification).receive(on: RunLoop.main)) { _ in
+                if !onboardingDone, !ScreenshotMode.isOn, HearthOnboarding.isDoneOnAnotherDevice(.sated) { skipOnboarding() }
             }
             // Every Hearth app works inside a household; after onboarding (which has its own
             // household step) and sign-in, the household step if there's still none.
@@ -207,9 +226,6 @@ struct AppRoot: View {
                 guard account.status != .unknown, !account.showsSignInScreen, onboardingDone || ScreenshotMode.isOn else { return }
                 await health.requestAccess()
                 await health.refreshActiveEnergy()
-            }
-            .onChange(of: appearance, initial: true) { _, option in
-                applyAppearance(option)
             }
             // Links from the widgets: sated://today, sated://add, sated://trends.
             .onOpenURL { url in
@@ -228,23 +244,8 @@ struct AppRoot: View {
             .onChange(of: scenePhase) { _, phase in
                 guard phase == .active else { return }
                 AppRouter.shared.rollOverIfNeeded()
-                applyAppearance(appearance)
                 Task { await health.refreshActiveEnergy() }
                 Task { await HearthSignIn.follow() }
             }
-    }
-
-    /// Sets the style on every window, so sheets and full-screen covers follow it too.
-    private func applyAppearance(_ option: AppearanceOption) {
-        let style: UIUserInterfaceStyle = switch option {
-        case .system: .unspecified
-        case .light: .light
-        case .dark: .dark
-        }
-        for case let scene as UIWindowScene in UIApplication.shared.connectedScenes {
-            for window in scene.windows {
-                window.overrideUserInterfaceStyle = style
-            }
-        }
     }
 }

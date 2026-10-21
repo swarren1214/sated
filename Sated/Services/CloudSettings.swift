@@ -1,7 +1,9 @@
 import Foundation
 
-/// Settings that follow the person to their other devices: daily goals, accent, appearance and
-/// Coach's settings.
+/// Settings that follow the person to their other devices: daily goals, Coach's settings and
+/// "Not now" on the sign-in. (Appearance belongs to each device, as in every Hearth app. Having
+/// finished onboarding and seen the tour follow the person through HearthKit's
+/// `HearthOnboarding` and `HearthTour`.)
 ///
 /// Views keep reading and writing them with @AppStorage. This mirrors those UserDefaults keys to
 /// iCloud key-value storage (NSUbiquitousKeyValueStore), as Hearken does for its highlight
@@ -15,11 +17,12 @@ enum CloudSettings {
         SettingsKey.goalCarbs,
         SettingsKey.goalFat,
         SettingsKey.goalFiber,
-        SettingsKey.appearance,
         SettingsKey.confirmVoiceEntries,
         SettingsKey.spokenReplies,
         SettingsKey.coachVoice,
         SettingsKey.coachPause,
+        // "Not now" on the sign-in, so a new device that skips onboarding doesn't ask again.
+        SettingsKey.signInSkipped,
     ]
 
     private static var observers: [NSObjectProtocol] = []
