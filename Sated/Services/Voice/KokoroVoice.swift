@@ -300,7 +300,7 @@ extension KokoroModel: URLSessionDownloadDelegate {
                 try? FileManager.default.removeItem(at: destination)
                 try FileManager.default.moveItem(at: location, to: destination)
             } catch let moveError {
-                error = moveError.localizedDescription
+                error = FriendlyError.message(for: moveError, while: .downloadingVoice)
             }
         }
         let result = error
@@ -309,7 +309,7 @@ extension KokoroModel: URLSessionDownloadDelegate {
 
     nonisolated func urlSession(_ session: URLSession, task: URLSessionTask, didCompleteWithError error: (any Error)?) {
         guard let error, (error as? URLError)?.code != .cancelled else { return }
-        let message = error.localizedDescription
+        let message = FriendlyError.message(for: error, while: .downloadingVoice)
         Task { @MainActor in KokoroModel.shared.tryNextSource(or: message) }
     }
 

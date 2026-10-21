@@ -79,7 +79,8 @@ struct SayItView: View {
                 phase = .ready(reply)
             }
         } catch {
-            phase = .failed(error.localizedDescription)
+            // The store's own errors already say what to do; never show the connection error itself.
+            phase = .failed((error as? WatchStore.ParseError)?.errorDescription ?? "Couldn't reach Sated on your iPhone. Keep it nearby and try again.")
         }
     }
 }

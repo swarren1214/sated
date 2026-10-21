@@ -2,10 +2,10 @@ import SwiftData
 import SwiftUI
 import UniformTypeIdentifiers
 
-/// Goals, Apple Health, Coach, appearance and data.
+/// Profile: the shared Hearth Profile with Sated's goals, Apple Health, Coach and appearance.
 struct SettingsView: View {
-    @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var context
+    @Environment(AccountStore.self) private var account
     @Environment(HealthService.self) private var health
     @Environment(CoachEngine.self) private var coach
 
@@ -23,210 +23,118 @@ struct SettingsView: View {
     @State private var model = KokoroModel.shared
     @State private var speaker = CoachSpeaker.shared
     @AppStorage(SettingsKey.appearance) private var appearance: AppearanceOption = .system
-    @State private var confirmsErase = false
-    @State private var isErasing = false
-
-    private var appVersion: String {
-        let info = Bundle.main.infoDictionary
-        let version = info?["CFBundleShortVersionString"] as? String ?? "0.1"
-        let build = info?["CFBundleVersion"] as? String ?? "1"
-        return "\(version) (\(build))"
-    }
 
     var body: some View {
-        Form {
+        // The shared Hearth Profile (HearthProfile.swift), with Sated's own sections in the middle.
+        HearthProfileView(
+            app: .sated,
+            profile: accountProfile,
+            sync: HearthProfileSync(summary: "Your food log and goals") {
+                SyncMonitor.shared.snapshot
+            } syncNow: {
+                await SyncMonitor.shared.syncNow()
+            },
+            erase: HearthProfileErase(
+                app: .sated,
+                message: "This deletes your food log, the meals Sated saved to Apple Health, and your goals and settings, on this \(DeviceName.current) and your other devices through iCloud. Your Hearth account and household aren't affected. This can't be undone.",
+                footer: "Your log lives on this \(DeviceName.current) and in your private iCloud, not on our servers. To find menus, Sated sends the names of nearby restaurants (or one you pick); for logos, a restaurant's web address or chain name. Scanned barcodes go to Open Food Facts."
+            ) {
+                await SatedDataEraser.eraseAll(in: context)
+            }
+        ) {
             AccountSection()
-
-            // Sated Plus and Hearth+: "Get Hearth+", or "Manage" for members.
-            Section {
-                HearthMembershipRow()
+        } settings: {
+            satedSections
+        } data: {
+            ShareLink(item: CSVExport(text: FoodLog.csv(in: context)), preview: SharePreview("Sated food log")) {
+                HearthProfileRow("Export as CSV", systemImage: "square.and.arrow.up")
             }
+        } about: {
+            Text("Coach's natural voice is Kokoro (Apache 2.0), run with KokoroSwift (MIT) and MisakiSwift (Apache 2.0).")
+            Text(AppConfig.foodDataCredit)
+            Text("Restaurant menu nutrition powered by fatsecret. Places from Apple Maps. Logos provided by Logo.dev.")
+            Text("Sated is for general wellness and isn't medical advice. Talk with a doctor or registered dietitian before big changes to how you eat.")
+        }
+    }
 
-            Section("iCloud") {
-                HearthSyncCard(app: .sated, snapshot: SyncMonitor.shared.snapshot, summary: "Your food log and goals") {
-                    await SyncMonitor.shared.syncNow()
-                }
-                .hearthSyncCardRow()
-            }
+    /// Who's signed in, for the account card at the top (nil shows Sign in with Apple).
+    private var accountProfile: HearthAccountProfile? {
+        guard case .signedIn(let name, let email) = account.status else { return nil }
+        return HearthAccountProfile(name: name, email: email)
+    }
 
+    /// Sated's own settings: goals, Apple Health, Coach and appearance.
+    @ViewBuilder
+    private var satedSections: some View {
+        Section {
+            GoalRow(title: "Calories", unit: "kcal", color: Accent.color, value: $goalCalories, range: 1200...6000, step: 50)
+            GoalRow(title: "Protein", unit: "g", color: Macro.protein.color, value: $goalProtein, range: 20...400, step: 5)
+            GoalRow(title: "Carbs", unit: "g", color: Macro.carbs.color, value: $goalCarbs, range: 20...600, step: 5)
+            GoalRow(title: "Fat", unit: "g", color: Macro.fat.color, value: $goalFat, range: 20...250, step: 5)
+            GoalRow(title: "Fiber", unit: "g", color: Macro.fiber.color, value: $goalFiber, range: 10...80, step: 1)
+        } header: {
+            Text("Daily Goals")
+        } footer: {
+            Text(macroCheck)
+        }
+
+        if health.isAvailable {
             Section {
-                GoalRow(title: "Calories", unit: "kcal", color: Accent.color, value: $goalCalories, range: 1200...6000, step: 50)
-                GoalRow(title: "Protein", unit: "g", color: Macro.protein.color, value: $goalProtein, range: 20...400, step: 5)
-                GoalRow(title: "Carbs", unit: "g", color: Macro.carbs.color, value: $goalCarbs, range: 20...600, step: 5)
-                GoalRow(title: "Fat", unit: "g", color: Macro.fat.color, value: $goalFat, range: 20...250, step: 5)
-                GoalRow(title: "Fiber", unit: "g", color: Macro.fiber.color, value: $goalFiber, range: 10...80, step: 1)
+                Toggle("Save Meals to Health", isOn: $saveToHealth)
+                Toggle("Show Active Energy", isOn: $readActiveEnergy)
+                    .onChange(of: readActiveEnergy) { Task { await health.refreshActiveEnergy() } }
             } header: {
-                Text("Daily Goals")
+                Text("Apple Health")
             } footer: {
-                Text(macroCheck)
-            }
-
-            if health.isAvailable {
-                Section {
-                    Toggle("Save Meals to Health", isOn: $saveToHealth)
-                    Toggle("Show Active Energy", isOn: $readActiveEnergy)
-                        .onChange(of: readActiveEnergy) { Task { await health.refreshActiveEnergy() } }
-                } header: {
-                    Text("Apple Health")
-                } footer: {
-                    Text("Meals appear in Health as dietary energy, protein, carbohydrates, fat and fiber. Change what Sated can read and write in the Health app › Sharing › Apps › Sated.")
-                }
-            }
-
-            Section {
-                LabeledContent("On-Device Model", value: coach.availability.statusText)
-                if coach.availability != .available {
-                    Text(coach.availability.message).font(.footnote).foregroundStyle(.secondary)
-                }
-                Toggle("Confirm Voice Entries", isOn: $confirmVoiceEntries)
-                Picker("Answer After a Pause Of", selection: $coachPause) {
-                    ForEach(CoachPause.allCases) { pause in
-                        Text("\(pause.name) (\(pause.seconds.formatted()) s)").tag(pause.seconds)
-                    }
-                }
-                .tint(.primary)
-                Toggle("Spoken Replies", isOn: $spokenReplies)
-                if spokenReplies {
-                    NaturalVoiceRow(model: model)
-                    if model.isReady {
-                        Picker("Voice", selection: $coachVoice) {
-                            ForEach(KokoroVoices.choices) { voice in
-                                Text("\(voice.name) · \(voice.detail)").tag(voice.id)
-                            }
-                        }
-                        .tint(.primary)
-                        Button("Play Sample", systemImage: speaker.isActive ? "stop.fill" : "play.fill") {
-                            if speaker.isActive {
-                                speaker.stop()
-                            } else {
-                                speaker.speak("Hi, I'm Coach. You have 1,122 calories left today, and dinner is still open.")
-                            }
-                        }
-                        .tint(.primary)
-                    }
-                }
-            } header: {
-                Text("Coach")
-            } footer: {
-                Text("Coach, your voice and its spoken replies all run on this \(DeviceName.current) and never leave it. When you talk with Coach, it answers once you pause for that long, and you can talk over it to interrupt. The natural voice is a one-time \(KokoroModel.approximateSize) download; until then, Coach speaks with the best Apple voice on your \(DeviceName.current). With Confirm Voice Entries off, foods you say are logged as soon as every one is matched.")
-            }
-
-            Section("Appearance") {
-                Picker("Appearance", selection: $appearance) {
-                    ForEach(AppearanceOption.allCases) { Text($0.name).tag($0) }
-                }
-                .pickerStyle(.segmented)
-            }
-
-            Section {
-                NavigationLink {
-                    HearthHouseholdView(accent: Accent.color)
-                } label: {
-                    HearthHouseholdLabel()
-                }
-            } header: {
-                Text("Household")
-            } footer: {
-                Text("Your allergies, diet, likes and dislikes, shared with your family's Hearth apps. Coach uses them to steer its suggestions.")
-            }
-            // The row's house icon in the text color, like its title (not the root tint).
-            .tint(.primary)
-
-            Section {
-                NavigationLink {
-                    HearthAppsView(current: .sated)
-                } label: {
-                    HearthAppsRowLabel(current: .sated)
-                }
-            }
-
-            Section {
-                ShareLink(item: CSVExport(text: FoodLog.csv(in: context)), preview: SharePreview("Sated food log")) {
-                    Label("Export as CSV", systemImage: "square.and.arrow.up")
-                }
-                .tint(.primary)
-                Button(role: .destructive) {
-                    confirmsErase = true
-                } label: {
-                    HStack {
-                        Text("Erase Sated Data")
-                        if isErasing {
-                            Spacer()
-                            ProgressView()
-                        }
-                    }
-                }
-                .disabled(isErasing)
-            } header: {
-                Text("Your Data")
-            } footer: {
-                Text("Your log lives on this \(DeviceName.current) and in your private iCloud, not on our servers. To find menus, Sated sends the names of nearby restaurants (or one you pick); for logos, a restaurant's web address or chain name. Scanned barcodes go to Open Food Facts.")
-            }
-            .alert("Erase all Sated data?", isPresented: $confirmsErase) {
-                Button("Erase", role: .destructive) {
-                    isErasing = true
-                    Task {
-                        await SatedDataEraser.eraseAll(in: context)
-                        isErasing = false
-                    }
-                }
-                Button("Cancel", role: .cancel) {}
-            } message: {
-                Text("This deletes your food log, the meals Sated saved to Apple Health, and your goals and settings, on this \(DeviceName.current) and your other devices through iCloud. Your Hearth account and household aren't affected. This can't be undone.")
-            }
-
-            Section("Help & Legal") {
-                Link(destination: AppConfig.supportURL) {
-                    Label("Help & Support", systemImage: "questionmark.circle")
-                }
-                Link(destination: AppConfig.supportEmailURL) {
-                    Label("Email support@hearthapps.com", systemImage: "envelope")
-                }
-                Link(destination: AppConfig.privacyURL) {
-                    Label("Privacy Policy", systemImage: "hand.raised")
-                }
-                Link(destination: AppConfig.termsURL) {
-                    Label("Terms of Use", systemImage: "doc.text")
-                }
-            }
-            .tint(.primary)
-
-            Section("About") {
-                // The app icon, from the exports in Developer/app-icons (Assets › AppIconImage),
-                // light and dark.
-                HStack(spacing: 14) {
-                    Image("AppIconImage")
-                        .resizable()
-                        .scaledToFit()
-                        .frame(width: 60, height: 60)
-                        .accessibilityHidden(true)
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("Sated").font(.headline)
-                        Text("Version \(appVersion)")
-                            .font(.footnote)
-                            .foregroundStyle(.secondary)
-                    }
-                }
-                .padding(.vertical, 4)
-                Text("Coach's natural voice is Kokoro (Apache 2.0), run with KokoroSwift (MIT) and MisakiSwift (Apache 2.0).")
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-                Text(AppConfig.foodDataCredit)
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-                Text("Restaurant menu nutrition powered by fatsecret. Places from Apple Maps. Logos provided by Logo.dev.")
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-                Text("Sated is for general wellness and isn't medical advice. Talk with a doctor or registered dietitian before big changes to how you eat.")
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
+                Text("Meals appear in Health as dietary energy, protein, carbohydrates, fat and fiber. Change what Sated can read and write in the Health app › Sharing › Apps › Sated.")
             }
         }
-        .navigationTitle("Settings")
-        .toolbar {
-            ToolbarItem(placement: .confirmationAction) {
-                SheetDoneButton { dismiss() }
+
+        Section {
+            LabeledContent("On-Device Model", value: coach.availability.statusText)
+            if coach.availability != .available {
+                Text(coach.availability.message).font(.footnote).foregroundStyle(.secondary)
             }
+            Toggle("Confirm Voice Entries", isOn: $confirmVoiceEntries)
+            Picker("Answer After a Pause Of", selection: $coachPause) {
+                ForEach(CoachPause.allCases) { pause in
+                    Text("\(pause.name) (\(pause.seconds.formatted()) s)").tag(pause.seconds)
+                }
+            }
+            .tint(.primary)
+            Toggle("Spoken Replies", isOn: $spokenReplies)
+            if spokenReplies {
+                NaturalVoiceRow(model: model)
+                if model.isReady {
+                    Picker("Voice", selection: $coachVoice) {
+                        ForEach(KokoroVoices.choices) { voice in
+                            Text("\(voice.name) · \(voice.detail)").tag(voice.id)
+                        }
+                    }
+                    .tint(.primary)
+                    Button("Play Sample", systemImage: speaker.isActive ? "stop.fill" : "play.fill") {
+                        if speaker.isActive {
+                            speaker.stop()
+                        } else {
+                            speaker.speak("Hi, I'm Coach. You have 1,122 calories left today, and dinner is still open.")
+                        }
+                    }
+                    .tint(.primary)
+                }
+            }
+        } header: {
+            Text("Coach")
+        } footer: {
+            Text("Coach, your voice and its spoken replies all run on this \(DeviceName.current) and never leave it. When you talk with Coach, it answers once you pause for that long, and you can talk over it to interrupt. The natural voice is a one-time \(KokoroModel.approximateSize) download; until then, Coach speaks with the best Apple voice on your \(DeviceName.current). With Confirm Voice Entries off, foods you say are logged as soon as every one is matched.")
+        }
+
+        MealRemindersSection()
+
+        Section("Appearance") {
+            Picker("Appearance", selection: $appearance) {
+                ForEach(AppearanceOption.allCases) { Text($0.name).tag($0) }
+            }
+            .pickerStyle(.segmented)
         }
     }
 
@@ -299,7 +207,7 @@ private struct AccountSection: View {
                     do {
                         try await account.deleteAccount(erasing: context)
                     } catch {
-                        deleteError = error.localizedDescription
+                        deleteError = FriendlyError.message(for: error, while: .deletingAccount)
                     }
                     isDeleting = false
                 }
@@ -410,4 +318,47 @@ nonisolated struct CSVExport: Transferable {
 #Preview {
     NavigationStack { SettingsView() }
         .previewEnvironment()
+}
+
+/// Profile › Meal Reminders: a daily nudge to log each meal, at the time picked (MealReminders).
+private struct MealRemindersSection: View {
+    @State private var on: [MealReminder: Bool] = Dictionary(uniqueKeysWithValues: MealReminder.allCases.map { ($0, $0.isOn) })
+    @State private var minutes: [MealReminder: Int] = Dictionary(uniqueKeysWithValues: MealReminder.allCases.map { ($0, $0.minutes) })
+
+    var body: some View {
+        Section {
+            ForEach(MealReminder.allCases) { meal in
+                Toggle(meal.name, isOn: Binding(
+                    get: { on[meal] ?? false },
+                    set: { value in
+                        on[meal] = value
+                        UserDefaults.standard.set(value, forKey: meal.enabledKey)
+                        Task {
+                            if value, !(await MealReminders.requestPermission()) {
+                                on[meal] = false
+                                UserDefaults.standard.set(false, forKey: meal.enabledKey)
+                            }
+                            MealReminders.reschedule()
+                        }
+                    }
+                ))
+                if on[meal] ?? false {
+                    DatePicker("Time", selection: Binding(
+                        get: { MealReminders.date(minutes: minutes[meal] ?? meal.defaultMinutes) },
+                        set: { date in
+                            let value = MealReminders.minutes(from: date)
+                            minutes[meal] = value
+                            UserDefaults.standard.set(value, forKey: meal.timeKey)
+                            MealReminders.reschedule()
+                        }
+                    ), displayedComponents: .hourAndMinute)
+                    .padding(.leading, 16)
+                }
+            }
+        } header: {
+            Text("Meal Reminders")
+        } footer: {
+            Text("A reminder to log each meal, every day at the time you pick.")
+        }
+    }
 }

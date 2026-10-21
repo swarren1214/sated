@@ -99,7 +99,7 @@ struct AppleSignInButton: View {
             do {
                 nonce = try HearthAPI.prepareAppleRequest(request)
             } catch {
-                errorMessage = error.localizedDescription
+                errorMessage = FriendlyError.message(for: error, while: .signingIn)
             }
         } onCompletion: { result in
             switch result {
@@ -115,13 +115,13 @@ struct AppleSignInButton: View {
                     do {
                         try await account.signIn(with: credential, nonce: requestNonce)
                     } catch {
-                        errorMessage = error.localizedDescription
+                        errorMessage = FriendlyError.message(for: error, while: .signingIn)
                     }
                 }
             case .failure(let error as ASAuthorizationError) where error.code == .canceled:
                 break
             case .failure(let error):
-                errorMessage = error.localizedDescription
+                errorMessage = FriendlyError.message(for: error, while: .signingIn)
             }
         }
         .signInWithAppleButtonStyle(colorScheme == .dark ? .white : .black)

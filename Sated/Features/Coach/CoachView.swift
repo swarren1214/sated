@@ -61,7 +61,7 @@ struct CoachView: View {
         }
         .colorHeader("Coach")
         .toolbar {
-            ToolbarItem(placement: .topBarTrailing) {
+            ToolbarItemGroup(placement: .topBarTrailing) {
                 Group {
                     if !coach.messages.isEmpty {
                         Button("Clear") { coach.reset() }
@@ -69,6 +69,7 @@ struct CoachView: View {
                 }
                 // White over the color header.
                 .tint(.white)
+                HearthProfileButton()
             }
         }
         .safeAreaInset(edge: .bottom) {

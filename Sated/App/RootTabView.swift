@@ -51,6 +51,13 @@ struct RootTabView: View {
         .tabViewStyle(.sidebarAdaptable)
         .tabViewSearchActivation(.searchTabSelection)
         .tabBarMinimizeBehavior(.onScrollDown)
+        // Profile, opened by the photo at the top right of every main screen.
+        .hearthProfile { SettingsView() }
+        // The tour (HearthTour.swift): one step per tab. Onboarding's last page starts it
+        // (Show Me Around); Profile › Take the Tour runs it again.
+        .hearthTour(app: .sated, steps: SatedTour.steps, finishTitle: "Got It", autoStart: false) { step in
+            router.tab = SatedTour.tab(for: step)
+        }
         // Debug: marketing screenshots (scripts/screenshots.sh). Does nothing otherwise.
         .screenshotStage(todayPath: $todayPath)
     }

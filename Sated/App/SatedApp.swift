@@ -42,8 +42,7 @@ struct SatedApp: App {
             apiBaseURL: AppConfig.apiBaseURL,
             accessToken: {
                 // Only a Sign in with Apple session is a Hearth account; an anonymous one isn't.
-                guard await HearthAPI.shared.isSignedInWithApple else { return nil }
-                return try? await HearthAPI.shared.accessToken()
+                await HearthAPI.shared.accessTokenIfSignedIn()
             },
             signInButton: { AnyView(AppleSignInButton().environment(AccountStore.shared)) }
         )
@@ -167,23 +166,45 @@ struct AppRoot: View {
     @Environment(\.scenePhase) private var scenePhase
     @Environment(HealthService.self) private var health
     @Environment(AccountStore.self) private var account
+    @Environment(\.modelContext) private var context
     @AppStorage(SettingsKey.appearance) private var appearance: AppearanceOption = .system
+    @AppStorage(SettingsKey.onboardingDone) private var onboardingDone = false
+    /// Whether someone who used Sated before onboarding existed has been let through.
+    @State private var gateChecked = false
+
+    /// A new install: the onboarding flow (it starts with the sign-in, which is optional).
+    private var showsOnboarding: Bool {
+        gateChecked && !onboardingDone && !ScreenshotMode.isOn && account.status != .unknown
+    }
 
     var body: some View {
         RootTabView()
             .tint(Accent.color)
-            // Sign in with Apple, until signed in or "Not now". Skipped when BigTable or
-            // Suffice already signed in on this iPhone.
-            .fullScreenCover(isPresented: Binding(get: { account.showsSignInScreen }, set: { _ in })) {
-                SignInView()
-                    .tint(Accent.color)
+            // First run: onboarding (Features/Onboarding). Afterwards, Sign in with Apple
+            // whenever someone's signed out without having chosen "Not now". Skipped when
+            // BigTable or Suffice already signed in on this iPhone.
+            .fullScreenCover(isPresented: Binding(get: { showsOnboarding || (onboardingDone && account.showsSignInScreen) }, set: { _ in })) {
+                Group {
+                    if onboardingDone {
+                        SignInView()
+                    } else {
+                        OnboardingView()
+                    }
+                }
+                .tint(Accent.color)
             }
-            // Every Hearth app works inside a household; after sign-in, the household step if
-            // there's none yet.
-            .hearthHouseholdRequired(isActive: !account.showsSignInScreen && account.status != .unknown && !ScreenshotMode.isOn, accent: Accent.color)
-            // Health's permission sheet waits until the sign-in screen is out of the way.
-            .task(id: account.status == .unknown || account.showsSignInScreen) {
-                guard account.status != .unknown, !account.showsSignInScreen else { return }
+            .task {
+                let entries = (try? context.fetchCount(FetchDescriptor<FoodEntry>())) ?? 0
+                OnboardingGate.markDoneForExistingUsers(hasEntries: entries > 0)
+                gateChecked = true
+            }
+            // Every Hearth app works inside a household; after onboarding (which has its own
+            // household step) and sign-in, the household step if there's still none.
+            .hearthHouseholdRequired(isActive: onboardingDone && !account.showsSignInScreen && account.status != .unknown && !ScreenshotMode.isOn, accent: Accent.color)
+            // Health's permission sheet waits until onboarding (which asks itself) and the
+            // sign-in screen are out of the way.
+            .task(id: account.status == .unknown || account.showsSignInScreen || !onboardingDone) {
+                guard account.status != .unknown, !account.showsSignInScreen, onboardingDone || ScreenshotMode.isOn else { return }
                 await health.requestAccess()
                 await health.refreshActiveEnergy()
             }

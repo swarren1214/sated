@@ -4,9 +4,7 @@ import SwiftUI
 /// Today: calories left, the four macros, a summary, and the day's meals. The calendar button
 /// and a sideways swipe move to other days, so earlier meals can be logged or fixed.
 struct TodayView: View {
-    @Environment(\.scenePhase) private var scenePhase
     @Environment(AppRouter.self) private var router
-    @State private var showsSettings = false
     @State private var showsCalendar = false
 
     var body: some View {
@@ -36,14 +34,12 @@ struct TodayView: View {
                 ToolbarItemGroup(placement: .topBarTrailing) {
                     Group {
                         Button("Choose Day", systemImage: "calendar") { showsCalendar = true }
-                        Button("Settings", systemImage: "person.crop.circle") { showsSettings = true }
                     }
                     // White over the color header.
                     .tint(.white)
+                    // The profile photo, last, as in every Hearth app (HearthProfile.swift).
+                    HearthProfileButton()
                 }
-            }
-            .sheet(isPresented: $showsSettings) {
-                NavigationStack { SettingsView() }
             }
             .sheet(isPresented: $showsCalendar) {
                 DayPicker()
@@ -209,6 +205,7 @@ private struct DayLog: View {
     @ViewBuilder
     private var overview: some View {
         CalorieCard(totals: totals, goals: goals, active: Calendar.current.isDateInToday(day) ? health.activeEnergyToday : nil)
+            .hearthTourTarget(SatedTour.today)
 
         VStack(alignment: .leading, spacing: 8) {
             SectionHeader("Macros")

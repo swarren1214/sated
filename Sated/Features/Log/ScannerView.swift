@@ -254,7 +254,8 @@ struct ScannerView: View {
             let food = try await OpenFoodFacts(userAgent: AppConfig.userAgent).product(barcode: barcode)
             phase = .found(food)
         } catch {
-            phase = .failed(error.localizedDescription)
+            // Open Food Facts' own lookup errors already say what to do next.
+            phase = .failed((error as? OpenFoodFacts.LookupError)?.errorDescription ?? FriendlyError.message(for: error, while: .lookingUpBarcode))
         }
     }
 
@@ -268,7 +269,8 @@ struct ScannerView: View {
             // Anything the rules already confirmed wins over the model.
             await finishLabel(source: .model, reading: label.confirmed.filled(from: reading))
         } catch {
-            phase = .failed((error as? LocalizedError)?.errorDescription ?? "Couldn't read the label. Try again with the whole panel in view.")
+            // Only Sated's own reading error has words for people; the model's errors don't.
+            phase = .failed((error as? LabelReader.ReadError)?.errorDescription ?? FriendlyError.message(for: error, while: .readingLabel))
         }
     }
 

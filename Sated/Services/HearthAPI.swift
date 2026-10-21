@@ -78,8 +78,12 @@ actor HearthAPI {
 
         var errorDescription: String? {
             switch self {
-            case .invalidResponse: "The identity service returned an invalid response."
-            case .service(let message), .rejected(let message): message
+            case .invalidResponse: "Sign-in didn't go through. Try again in a moment."
+            // Written for people where it's thrown (`error(from:)` keeps the server's own text
+            // out of it).
+            case .service(let message): message
+            // The server's text, for the log only.
+            case .rejected: "Your sign-in has expired. Sign in with Apple again."
             case .rateLimited: "Too many requests just now. Try again in a minute."
             case .missingAppleToken: "Apple did not provide an identity token. Please try again."
             case .missingAppleNonce: "The Apple sign-in request expired. Please try again."
@@ -160,7 +164,8 @@ actor HearthAPI {
                 throw ClientError.service("Remove the other people from your household in BigTable first.")
             }
             if status == 429 { throw ClientError.rateLimited }
-            throw ClientError.service(detail?.message ?? "Your account couldn't be deleted right now (error \(status)). Try again in a moment.")
+            Self.log.error("deleteAccount: HTTP \(status) \(detail?.code ?? "-", privacy: .public): \(detail?.message ?? "", privacy: .public)")
+            throw ClientError.service("Your account couldn't be deleted right now. Nothing was changed. Try again in a moment.")
         }
     }
 
@@ -198,7 +203,7 @@ actor HearthAPI {
     nonisolated static func prepareAppleRequest(_ request: ASAuthorizationAppleIDRequest) throws -> String {
         var bytes = [UInt8](repeating: 0, count: 32)
         guard SecRandomCopyBytes(kSecRandomDefault, bytes.count, &bytes) == errSecSuccess else {
-            throw ClientError.service("Could not securely prepare Sign in with Apple.")
+            throw ClientError.service("Sign in with Apple couldn't start. Try again.")
         }
         let nonce = bytes.map { String(format: "%02x", $0) }.joined()
         let digest = SHA256.hash(data: Data(nonce.utf8))
@@ -254,6 +259,9 @@ actor HearthAPI {
                 }
                 Self.log.notice("Refresh token rejected (\(message, privacy: .public)); starting a new anonymous session")
                 // Don't adopt this dead session again from the shared Keychain.
+                // Dead in every app (only when Supabase says the refresh token itself is invalid, not
+                // for any other 4xx): remove it from the shared sign-in too, if it's still there.
+                if Self.isDeadRefreshToken(message) { HearthAccounts.discardSession(ifRefreshToken: authSession?.refreshToken ?? refreshToken) }
                 Self.markDead(refreshToken: authSession?.refreshToken ?? refreshToken)
                 Self.deleteStoredSession()
                 authSession = nil
@@ -272,7 +280,13 @@ actor HearthAPI {
         let body = try JSONSerialization.data(withJSONObject: ["refresh_token": refreshToken])
         let refreshed: AuthSession = try await auth(path: "/auth/v1/token?grant_type=refresh_token", body: body)
         store(refreshed)
-        share(refreshed)
+        // Someone else signed in in another app while this was on its way: never write this
+        // account back over theirs (the next look follows them).
+        // (No shared session, but it was this account's: signed out elsewhere meanwhile.)
+        let sharedNow = HearthAccounts.session()
+        let mayShare = sharedNow.map { $0.userID == refreshed.user.id }
+            ?? (UserDefaults.standard.string(forKey: Self.sharedUserKey) != refreshed.user.id)
+        if mayShare { share(refreshed) } else { _ = followSharedSession() }
         return refreshed
     }
 
@@ -379,6 +393,13 @@ actor HearthAPI {
         return SignInStatus(isSignedIn: isSignedInWithApple, email: isSignedInWithApple ? authSession?.user.email : nil)
     }
 
+    /// The Hearth account's access token for HearthKit (household plans, the household's server
+    /// side): nil unless signed in with Apple, and never an anonymous session's.
+    func accessTokenIfSignedIn() async -> String? {
+        guard isSignedInWithApple, let token = try? await accessToken(), isSignedInWithApple else { return nil }
+        return token
+    }
+
     /// True once someone has signed in with Apple, here or in another Hearth app (not an
     /// anonymous session).
     var isSignedInWithApple: Bool {
@@ -470,6 +491,12 @@ actor HearthAPI {
         SHA256.hash(data: Data(token.utf8)).map { String(format: "%02x", $0) }.joined()
     }
 
+    /// Supabase's answer when the refresh token itself is no good ("Invalid Refresh Token: …"),
+    /// as opposed to any other rejected request.
+    private nonisolated static func isDeadRefreshToken(_ message: String) -> Bool {
+        message.localizedCaseInsensitiveContains("refresh token") || message.localizedCaseInsensitiveContains("invalid_grant")
+    }
+
     private nonisolated static func markDead(refreshToken: String) {
         UserDefaults.standard.set(tokenHash(refreshToken), forKey: deadTokenKey)
     }
@@ -498,8 +525,10 @@ actor HearthAPI {
         return detail?.message ?? detail?.msg ?? detail?.errorDescription ?? "The service returned HTTP \(status)."
     }
 
+    /// A server failure: its own text goes to the log, never to the person.
     private nonisolated static func error(from data: Data, status: Int) -> ClientError {
-        .service(message(from: data, status: status))
+        log.error("Identity service HTTP \(status): \(message(from: data, status: status), privacy: .public)")
+        return .service("The Hearth sign-in service is having trouble. Try again in a moment.")
     }
 }
 

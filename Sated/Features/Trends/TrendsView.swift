@@ -40,6 +40,7 @@ struct TrendsView: View {
                     ForEach(Range.allCases) { Text($0.rawValue).tag($0) }
                 }
                 .pickerStyle(.segmented)
+                .hearthTourTarget(SatedTour.trends)
 
                 switch range {
                 case .day: DayTrends(entries: entries.filter { calendar.isDateInToday($0.date) }, goals: goals)
@@ -59,6 +60,11 @@ struct TrendsView: View {
         }
         .refreshable { await CloudRefresh.refresh() }
         .colorHeader("Trends")
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                HearthProfileButton()
+            }
+        }
         // The tab's own tint, so charts and rings match the accent.
         .tint(Accent.color)
         // Screenshot mode (Debug): the range the screenshot asks for.
