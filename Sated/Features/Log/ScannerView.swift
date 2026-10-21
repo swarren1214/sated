@@ -116,6 +116,7 @@ struct ScannerView: View {
             Button("Close", systemImage: "xmark") { dismiss() }
                 .labelStyle(.iconOnly)
                 .font(.title3)
+                .tint(.primary)
                 .frame(width: 44, height: 44)
                 .glassEffect(.regular.interactive(), in: .circle)
             Spacer()
@@ -166,6 +167,7 @@ struct ScannerView: View {
                 HStack(spacing: 10) {
                     Button("Details") { detail = food }
                         .buttonStyle(.glass)
+                        .tint(.primary)
                         .frame(maxWidth: .infinity)
                     Button("Add") {
                         FoodLog.add(food, servings: 1, meal: meal, in: context)
@@ -186,6 +188,7 @@ struct ScannerView: View {
                     .multilineTextAlignment(.center)
                 Button("Scan Again") { restart() }
                 .buttonStyle(.glass)
+                .tint(.primary)
             }
             .padding(18)
             .frame(maxWidth: .infinity)
@@ -209,12 +212,14 @@ struct ScannerView: View {
                             Task { await readWithModel() }
                         }
                         .buttonStyle(.glass)
+                        .tint(.primary)
                         .frame(maxWidth: .infinity)
                     }
                     Button("Enter Manually") {
                         Task { await finishLabel(source: .manual, reading: label.best) }
                     }
                     .buttonStyle(.glass)
+                    .tint(.primary)
                     .frame(maxWidth: .infinity)
                 }
                 .controlSize(.large)

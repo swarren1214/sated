@@ -174,6 +174,7 @@ struct RestaurantMenuView: View {
                     Text("Nutrition as \(restaurant) publishes it. Menus change; when something looks off, check with the restaurant.")
                     Link(result.menu.attribution, destination: URL(string: "https://www.fatsecret.com")!)
                         .font(.footnote.weight(.semibold))
+                        .tint(.primary)
                 }
             }
         }
@@ -267,8 +268,10 @@ struct RestaurantMenuView: View {
                     Task { await load(force: true) }
                 }
                 .buttonStyle(.bordered)
+                .tint(.primary)
             }
             NavigationLink("Estimate Instead", value: EatOutRoute.estimate(place))
+                .tint(.primary)
         }
         .background(Color(.systemGroupedBackground))
         .navigationTitle(place.name)
@@ -288,6 +291,7 @@ struct EatOutLockedView: View {
                 if let place {
                     NavigationLink("Estimate Instead", value: EatOutRoute.estimate(place))
                         .buttonStyle(.bordered)
+                        .tint(.primary)
                 }
             }
             .padding(16)
@@ -318,6 +322,7 @@ private struct UsualRow: View {
             Button("Log", action: log)
                 .buttonStyle(.bordered)
                 .controlSize(.small)
+                .tint(.primary)
                 .accessibilityLabel("Log \(usual.food.name)")
         }
         .padding(.vertical, 2)
@@ -387,6 +392,7 @@ struct MenuItemSheet: View {
                         Picker("Serving", selection: $serving) {
                             ForEach(item.servings) { Text($0.text).tag($0) }
                         }
+                        .tint(.primary)
                     } else {
                         LabeledContent("Serving", value: serving.text)
                     }
@@ -401,6 +407,7 @@ struct MenuItemSheet: View {
                     Picker("Meal", selection: $meal) {
                         ForEach(Meal.allCases) { Text($0.name).tag($0) }
                     }
+                    .tint(.primary)
                 }
 
                 Section {
@@ -438,6 +445,7 @@ struct MenuItemSheet: View {
                         dismiss()
                     }
                     .font(.subheadline.weight(.semibold))
+                    .tint(.primary)
                 }
                 .padding(.horizontal, 16)
                 .padding(.bottom, 8)
@@ -491,6 +499,7 @@ struct PlateReview: View {
                     Picker("Meal", selection: $meal) {
                         ForEach(Meal.allCases) { Text($0.name).tag($0) }
                     }
+                    .tint(.primary)
                     NutritionSummary(nutrients: total, approximate: false)
                 }
             }

@@ -262,6 +262,7 @@ struct LabelReviewView: View {
                     dismiss()
                     onRescan()
                 }
+                .tint(.primary)
             }
         }
         .safeAreaInset(edge: .bottom) {

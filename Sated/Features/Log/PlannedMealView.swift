@@ -34,7 +34,7 @@ struct PlannedMealCard: View {
                         .lineLimit(2)
                     Text(detail)
                         .font(.subheadline)
-                        .foregroundStyle(.tint)
+                        .foregroundStyle(.secondary)
                         .monospacedDigit()
                         .lineLimit(1)
                 }
@@ -110,6 +110,7 @@ struct PlannedMealSheet: View {
                     Picker("Meal", selection: $meal) {
                         ForEach(Meal.allCases) { Text($0.name).tag($0) }
                     }
+                    .tint(.primary)
                 } footer: {
                     if let text = suggestionText {
                         Text(text)
@@ -134,6 +135,7 @@ struct PlannedMealSheet: View {
                 if let url = pick.meal.openURL {
                     Section {
                         Button("Open in BigTable", systemImage: "arrow.up.forward.app") { openURL(url) }
+                            .tint(.primary)
                     }
                 }
             }

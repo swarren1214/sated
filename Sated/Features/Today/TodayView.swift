@@ -80,11 +80,13 @@ private struct DayPicker: View {
                 ToolbarItem(placement: .cancellationAction) {
                     SheetCancelButton("Close") { dismiss() }
                 }
-                ToolbarItem(placement: .confirmationAction) {
+                // Not a confirm button, so not in the confirm spot (AGENT.md).
+                ToolbarItem(placement: .primaryAction) {
                     Button("Today") {
                         router.show(.now)
                         dismiss()
                     }
+                    .tint(.primary)
                     .disabled(router.isToday)
                 }
             }
@@ -228,6 +230,7 @@ private struct DayLog: View {
             SectionHeader(title: "Meals") {
                 Button("Add Food", systemImage: "plus") { router.addFood() }
                     .font(.body)
+                    .tint(.primary)
             }
             VStack(spacing: 0) {
                 ForEach(Meal.allCases) { meal in
@@ -321,7 +324,7 @@ private struct SummaryCard: View {
                     HStack {
                         Label("SUMMARY", systemImage: "sparkles")
                             .font(.footnote.weight(.semibold))
-                            .foregroundStyle(.tint)
+                            .foregroundStyle(.secondary)
                         Spacer()
                         Image(systemName: "chevron.right")
                             .font(.footnote.weight(.semibold))

@@ -59,7 +59,7 @@ struct TrendsView: View {
         }
         .refreshable { await CloudRefresh.refresh() }
         .colorHeader("Trends")
-        // The tab's own tint, so charts, rings and headings match the accent.
+        // The tab's own tint, so charts and rings match the accent.
         .tint(Accent.color)
         // Screenshot mode (Debug): the range the screenshot asks for.
         .task {
@@ -268,7 +268,7 @@ private struct DayTrends: View {
                         Text(meal.name)
                         Spacer()
                         if items.isEmpty {
-                            Text("Open").fontWeight(.semibold).foregroundStyle(.tint)
+                            Text("Open").fontWeight(.semibold).foregroundStyle(.secondary)
                         } else {
                             Text("\(Int(items.reduce(0) { $0 + $1.nutrients.calories }.rounded())) kcal")
                                 .foregroundStyle(.secondary)
@@ -610,7 +610,7 @@ private struct SummaryText: View {
             VStack(alignment: .leading, spacing: 8) {
                 Label(title, systemImage: "sparkles")
                     .font(.footnote.weight(.semibold))
-                    .foregroundStyle(.tint)
+                    .foregroundStyle(.secondary)
                 Text(text).font(.subheadline)
             }
         }

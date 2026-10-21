@@ -35,6 +35,7 @@ struct RestaurantsView: View {
                     Text("Places from Apple Maps. Your location is used only while you're looking for a place, and isn't saved. “Full menu” chains publish their nutrition; everywhere else, Sated helps you estimate.")
                     Link("Logos provided by Logo.dev", destination: URL(string: "https://logo.dev")!)
                         .font(.footnote.weight(.semibold))
+                        .tint(.primary)
                 }
             }
         }
@@ -107,6 +108,7 @@ struct RestaurantsView: View {
                     Button("Open Settings") {
                         if let url = URL(string: UIApplication.openSettingsURLString) { openURL(url) }
                     }
+                    .tint(.primary)
                 }
                 .padding(.vertical, 4)
             case .failed:
@@ -114,6 +116,7 @@ struct RestaurantsView: View {
                     Text("Couldn't find places near you right now.")
                         .foregroundStyle(.secondary)
                     Button("Try Again") { Task { await nearby.refresh(force: true) } }
+                        .tint(.primary)
                 }
                 .padding(.vertical, 4)
             case .loaded:
@@ -142,6 +145,7 @@ struct RestaurantsView: View {
                     Text("Search isn't working right now.")
                         .foregroundStyle(.secondary)
                     Button("Try Again") { Task { await search(debounce: false) } }
+                        .tint(.primary)
                 }
                 .padding(.vertical, 4)
             } else if results.isEmpty {

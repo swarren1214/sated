@@ -114,6 +114,7 @@ struct VoiceLogView: View {
                 HStack(spacing: 10) {
                     Button("Close") { close() }
                         .buttonStyle(.glass)
+                        .tint(.primary)
                         .frame(maxWidth: .infinity)
                     Button("Try Again") {
                         phase = .listening
@@ -139,10 +140,11 @@ struct VoiceLogView: View {
             } label: {
                 HStack(spacing: 4) {
                     Text(targetMeal.name).font(.title3.bold())
-                    Image(systemName: "chevron.up.chevron.down").font(.caption.weight(.semibold)).foregroundStyle(.secondary)
+                    Image(systemName: "chevron.up.chevron.down").font(.caption.weight(.semibold))
                 }
                 .foregroundStyle(.primary)
             }
+            .tint(.primary)
             Spacer()
             Text("\(matched.count) item\(matched.count == 1 ? "" : "s")")
                 .foregroundStyle(.secondary)
@@ -165,7 +167,7 @@ struct VoiceLogView: View {
                 withAnimation(.snappy) { editing.toggle() }
             }
             .fontWeight(.semibold)
-            .foregroundStyle(Accent.color)
+            .foregroundStyle(.primary)
         }
         .font(.subheadline)
         .padding(.horizontal, 4)

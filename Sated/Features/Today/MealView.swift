@@ -97,6 +97,7 @@ struct EntryEditor: View {
                     Picker("Meal", selection: $meal) {
                         ForEach(Meal.allCases) { Text($0.name).tag($0) }
                     }
+                    .tint(.primary)
                 } footer: {
                     Text("\(entry.servingLabel) per serving · \((entry.perServing * servings).summary)")
                 }

@@ -147,7 +147,7 @@ struct CoachVoiceView: View {
             HStack(spacing: 12) {
                 Image(systemName: "speaker.wave.2.fill")
                     .symbolEffect(.variableColor.iterative, options: .repeating)
-                    .foregroundStyle(Accent.color)
+                    .foregroundStyle(.primary)
                     .font(.title3)
                 Text("Start talking to interrupt.")
                     .font(.footnote)
@@ -177,7 +177,7 @@ struct CoachVoiceView: View {
                         .frame(minHeight: 36)
                 }
                 .buttonStyle(.plain)
-                .foregroundStyle(Accent.color)
+                .foregroundStyle(.primary)
                 .background(Accent.color.opacity(0.15), in: .capsule)
             }
         case .failed(let message):
@@ -189,7 +189,7 @@ struct CoachVoiceView: View {
     private func answer(_ reply: CoachMessage) -> some View {
         Label("Coach", systemImage: "sparkles")
             .font(.subheadline.weight(.semibold))
-            .foregroundStyle(Accent.color)
+            .foregroundStyle(.secondary)
         Text(reply.text)
             .font(.body)
             .fixedSize(horizontal: false, vertical: true)
@@ -237,7 +237,7 @@ struct CoachVoiceView: View {
             } label: {
                 Label("Get Coach's natural voice (\(KokoroModel.approximateSize), runs on this \(DeviceName.current))", systemImage: "arrow.down.circle")
                     .font(.footnote.weight(.medium))
-                    .foregroundStyle(Accent.color)
+                    .foregroundStyle(.primary)
             }
             .buttonStyle(.plain)
         case .downloading(let fraction):
@@ -271,7 +271,7 @@ struct CoachVoiceView: View {
                 }
                 .buttonStyle(.plain)
                 .font(.headline)
-                .foregroundStyle(Accent.color)
+                .foregroundStyle(.primary)
                 .background(Accent.color.opacity(0.15), in: .capsule)
             } else {
                 Button { close() } label: {
@@ -279,7 +279,7 @@ struct CoachVoiceView: View {
                 }
                 .buttonStyle(.plain)
                 .font(.headline)
-                .foregroundStyle(Accent.color)
+                .foregroundStyle(.primary)
                 .background(Accent.color.opacity(0.15), in: .capsule)
             }
         }

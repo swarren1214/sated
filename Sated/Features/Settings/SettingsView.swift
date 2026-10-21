@@ -84,6 +84,7 @@ struct SettingsView: View {
                         Text("\(pause.name) (\(pause.seconds.formatted()) s)").tag(pause.seconds)
                     }
                 }
+                .tint(.primary)
                 Toggle("Spoken Replies", isOn: $spokenReplies)
                 if spokenReplies {
                     NaturalVoiceRow(model: model)
@@ -93,6 +94,7 @@ struct SettingsView: View {
                                 Text("\(voice.name) · \(voice.detail)").tag(voice.id)
                             }
                         }
+                        .tint(.primary)
                         Button("Play Sample", systemImage: speaker.isActive ? "stop.fill" : "play.fill") {
                             if speaker.isActive {
                                 speaker.stop()
@@ -100,6 +102,7 @@ struct SettingsView: View {
                                 speaker.speak("Hi, I'm Coach. You have 1,122 calories left today, and dinner is still open.")
                             }
                         }
+                        .tint(.primary)
                     }
                 }
             } header: {
@@ -126,6 +129,8 @@ struct SettingsView: View {
             } footer: {
                 Text("Your allergies, diet, likes and dislikes, shared with your family's Hearth apps. Coach uses them to steer its suggestions.")
             }
+            // The row's house icon in the text color, like its title (not the root tint).
+            .tint(.primary)
 
             Section {
                 NavigationLink {
@@ -139,6 +144,7 @@ struct SettingsView: View {
                 ShareLink(item: CSVExport(text: FoodLog.csv(in: context)), preview: SharePreview("Sated food log")) {
                     Label("Export as CSV", systemImage: "square.and.arrow.up")
                 }
+                .tint(.primary)
                 Button(role: .destructive) {
                     confirmsErase = true
                 } label: {
@@ -183,6 +189,7 @@ struct SettingsView: View {
                     Label("Terms of Use", systemImage: "doc.text")
                 }
             }
+            .tint(.primary)
 
             Section("About") {
                 // The app icon, from the exports in Developer/app-icons (Assets › AppIconImage),
@@ -334,7 +341,7 @@ private struct NaturalVoiceRow: View {
                 model.download()
             } label: {
                 LabeledContent("Natural Voice") {
-                    Text("Download \(KokoroModel.approximateSize)").foregroundStyle(.tint)
+                    Text("Download \(KokoroModel.approximateSize)").foregroundStyle(.secondary)
                 }
             }
             .foregroundStyle(.primary)
@@ -342,6 +349,7 @@ private struct NaturalVoiceRow: View {
             VStack(alignment: .leading, spacing: 8) {
                 LabeledContent("Natural Voice") {
                     Button("Cancel") { model.cancelDownload() }
+                        .tint(.primary)
                 }
                 ProgressView(value: fraction)
             }
@@ -357,6 +365,7 @@ private struct NaturalVoiceRow: View {
             VStack(alignment: .leading, spacing: 6) {
                 LabeledContent("Natural Voice") {
                     Button("Try Again") { model.download() }
+                        .tint(.primary)
                 }
                 Text(message).font(.footnote).foregroundStyle(.secondary)
             }

@@ -115,6 +115,7 @@ struct EstimateMealView: View {
                             Spacer()
                             Button("Log Again", action: logLastVisit)
                                 .font(.subheadline.weight(.semibold))
+                                .tint(.primary)
                                 .textCase(nil)
                         }
                     }
@@ -188,6 +189,7 @@ struct EstimateMealView: View {
         }
         .buttonStyle(.bordered)
         .buttonBorderShape(.capsule)
+        .tint(.primary)
     }
 
     private func logLastVisit() {
@@ -245,6 +247,7 @@ private struct EstimateSheet: View {
                     Picker("Meal", selection: $meal) {
                         ForEach(Meal.allCases) { Text($0.name).tag($0) }
                     }
+                    .tint(.primary)
                 }
                 Section {
                     NutritionSummary(nutrients: nutrients, approximate: true)

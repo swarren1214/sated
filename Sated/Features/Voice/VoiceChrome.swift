@@ -83,7 +83,7 @@ struct LiveTranscript: View {
         VStack(alignment: .leading, spacing: 12) {
             Text(heading)
                 .font(.subheadline.weight(.semibold))
-                .foregroundStyle(isListening ? AnyShapeStyle(.tint) : AnyShapeStyle(.secondary))
+                .foregroundStyle(isListening ? AnyShapeStyle(.primary) : AnyShapeStyle(.secondary))
             if text.isEmpty {
                 Text(placeholder)
                     .foregroundStyle(.secondary)

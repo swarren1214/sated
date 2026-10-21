@@ -74,6 +74,7 @@ struct SignInView: View {
                     withAnimation { account.skipSignIn() }
                 }
                 .font(.body.weight(.medium))
+                .tint(.primary)
                 .frame(maxWidth: .infinity, minHeight: 44)
             }
             Text("One sign-in for Sated, BigTable and Suffice. Sated never uploads your food log.")

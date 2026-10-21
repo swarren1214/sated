@@ -148,6 +148,7 @@ struct AddFoodView: View {
                             Text("Try a shorter word, scan the barcode, or use Quick Add.")
                         } actions: {
                             Button("Quick Add") { showsQuickAdd = true }
+                                .tint(.primary)
                         }
                     } else {
                         Section("Foods") {
@@ -312,7 +313,7 @@ private struct HereCard: View {
                         .lineLimit(1)
                     Text(hasMenu == false ? "Estimate your meal" : "Log from the menu")
                         .font(.subheadline)
-                        .foregroundStyle(.tint)
+                        .foregroundStyle(.secondary)
                 }
                 Spacer(minLength: 4)
                 Image(systemName: "chevron.right")

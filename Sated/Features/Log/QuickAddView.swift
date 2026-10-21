@@ -29,6 +29,7 @@ struct QuickAddView: View {
                     Picker("Meal", selection: $chosenMeal) {
                         ForEach(Meal.allCases) { Text($0.name).tag($0) }
                     }
+                    .tint(.primary)
                 }
                 Section("Nutrition") {
                     field("Calories", unit: "kcal", value: $calories)

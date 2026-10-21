@@ -43,6 +43,7 @@ struct FoodDetailView: View {
                                 Text(portion.text).tag(portion.label == food.serving ? nil : Optional(portion))
                             }
                         }
+                        .tint(.primary)
                         .padding(.vertical, 6)
                     } else {
                         LabeledContent("Serving", value: food.servingText)
@@ -62,6 +63,7 @@ struct FoodDetailView: View {
                     Picker("Meal", selection: $meal) {
                         ForEach(Meal.allCases) { Text($0.name).tag($0) }
                     }
+                    .tint(.primary)
                     .padding(.vertical, 6)
                 }
                 .padding(.horizontal, 16)

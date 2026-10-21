@@ -114,6 +114,7 @@ struct CoachView: View {
                             send()
                         }
                         .buttonStyle(.glass)
+                        .tint(.primary)
                         .disabled(coach.isThinking)
                     }
                 }
