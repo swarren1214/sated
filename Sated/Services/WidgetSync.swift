@@ -54,6 +54,7 @@ enum WidgetSync {
     private static func write() {
         guard let container, let url = WidgetSnapshot.url else { return }
         do {
+            HearthFoodLogPublisher.publish(context: container.mainContext)
             let data = try makeSnapshot(context: container.mainContext).encoded()
             // The Watch has its own snapshot (with usuals) and skips sends that change nothing.
             WatchBridge.shared.schedule()
