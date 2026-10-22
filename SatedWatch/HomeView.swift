@@ -6,7 +6,7 @@ struct HomeView: View {
     @Environment(WatchStore.self) private var store
     @Environment(\.scenePhase) private var scenePhase
     @State private var path: [WatchRoute] = []
-    @State private var meal = Meal.suggested()
+    @State private var meal = ScreenshotMode.isOn ? ScreenshotMode.meal : Meal.suggested()
     /// Refreshed on returning to the app, so totals start over after midnight.
     @State private var now = Date.now
 
@@ -66,9 +66,15 @@ struct HomeView: View {
             }
         }
         .tint(store.accent)
+        .task {
+            // Screenshot mode: open the requested screen once Home has settled.
+            guard let route = ScreenshotMode.route else { return }
+            try? await Task.sleep(for: .milliseconds(400))
+            path = [route]
+        }
         .onChange(of: scenePhase) { _, phase in
             // Coming back later in the day: show the meal it is now.
-            guard phase == .active else { return }
+            guard phase == .active, !ScreenshotMode.isOn else { return }
             now = .now
             if path.isEmpty { meal = .suggested() }
         }

@@ -24,12 +24,17 @@ final class WatchStore: NSObject {
 
     override init() {
         super.init()
+        // Screenshot mode: demo content in memory only; the saved files are never touched.
+        if ScreenshotMode.isOn {
+            snapshot = ScreenshotMode.snapshot()
+            return
+        }
         if let saved = Self.load(WatchSnapshot.self, from: Self.snapshotURL) { snapshot = saved }
         pending = Self.load([WatchLogRequest].self, from: Self.pendingURL) ?? []
     }
 
     func activate() {
-        guard WCSession.isSupported() else { return }
+        guard !ScreenshotMode.isOn, WCSession.isSupported() else { return }
         WCSession.default.delegate = self
         WCSession.default.activate()
     }
@@ -51,6 +56,8 @@ final class WatchStore: NSObject {
         guard !foods.isEmpty else { return }
         let request = WatchLogRequest(date: .now, meal: meal.rawValue, foods: foods)
         pending.append(request)
+        // Screenshot mode: counted in today's totals, but never saved or sent to the phone.
+        guard !ScreenshotMode.isOn else { return }
         savePending()
         send(request)
     }
@@ -94,6 +101,7 @@ final class WatchStore: NSObject {
 
     /// Asks the phone's on-device model to turn dictation into foods.
     func parse(_ text: String) async throws -> WatchParseReply {
+        if ScreenshotMode.isOn { return ScreenshotMode.parseReply }
         let session = WCSession.default
         guard session.activationState == .activated, session.isReachable else { throw ParseError.phoneAway }
         let message = try WatchLink.message(.parse, WatchParseRequest(text: text))
