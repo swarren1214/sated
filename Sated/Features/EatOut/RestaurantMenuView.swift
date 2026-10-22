@@ -510,7 +510,7 @@ struct PlateReview: View {
                     SheetCancelButton("Close") { dismiss() }
                 }
                 ToolbarItem(placement: .destructiveAction) {
-                    Button("Clear", role: .destructive) {
+                    Button("Clear", systemImage: "trash", role: .destructive) {
                         lines = []
                         dismiss()
                     }

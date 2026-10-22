@@ -52,6 +52,8 @@ struct SatedApp: App {
     var body: some Scene {
         WindowGroup {
             AppRoot()
+                // iPhone Duo: reads the pose (closed, open, folded) for every screen below.
+                .hearthDuoPose()
                 // The Hearth launch splash.
                 .hearthSplash(.sated, isEnabled: !ScreenshotMode.isOn)
                 .task {

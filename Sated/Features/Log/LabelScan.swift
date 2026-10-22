@@ -258,7 +258,7 @@ struct LabelReviewView: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .cancellationAction) {
-                Button("Scan Again") {
+                Button("Scan Again", systemImage: "arrow.counterclockwise") {
                     dismiss()
                     onRescan()
                 }

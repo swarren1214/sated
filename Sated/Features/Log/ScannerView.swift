@@ -35,6 +35,14 @@ struct ScannerView: View {
     @State private var review: LabelDraft?
     @State private var purchases = HearthPurchases.shared
 
+    /// `startingMode`: `.label` opens straight into Nutrition Label (iPhone Duo's outer display
+    /// has Scan a Label on its rail).
+    init(meal: Meal, startingMode: Mode = .barcode, onAdded: @escaping () -> Void = {}) {
+        self.meal = meal
+        self.onAdded = onAdded
+        _mode = State(initialValue: startingMode)
+    }
+
     /// Reading Nutrition Facts labels is Sated Plus or Hearth+; barcodes are free on purpose.
     private var labelLocked: Bool { mode == .label && !purchases.isUnlocked }
 

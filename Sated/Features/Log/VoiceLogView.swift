@@ -48,16 +48,24 @@ struct VoiceLogView: View {
 
             VStack(alignment: .leading, spacing: 0) {
                 VoiceTopBar { close() }
-                Spacer(minLength: 24)
-                LiveTranscript(
-                    heading: phase == .listening ? "Listening" : "You said",
-                    text: dictation.transcript,
-                    placeholder: "Say what you ate, like “two eggs and a slice of toast.”",
-                    isListening: phase == .listening,
-                    quoted: true
-                )
-                Spacer(minLength: 24)
-                panel
+                // On a short screen (iPhone Duo's outer display, large text) the transcript and
+                // the foods it found scroll rather than clip, so both stay readable to check.
+                ViewThatFits(in: .vertical) {
+                    VStack(alignment: .leading, spacing: 0) {
+                        Spacer(minLength: 24)
+                        transcript
+                        Spacer(minLength: 24)
+                        panel
+                    }
+                    ScrollView {
+                        VStack(alignment: .leading, spacing: 16) {
+                            transcript
+                            panel
+                        }
+                        .padding(.vertical, 12)
+                    }
+                    .scrollBounceBehavior(.basedOnSize)
+                }
             }
             .padding(.horizontal, 16)
             .padding(.bottom, 8)
@@ -79,6 +87,16 @@ struct VoiceLogView: View {
                 break
             }
         }
+    }
+
+    private var transcript: some View {
+        LiveTranscript(
+            heading: phase == .listening ? "Listening" : "You said",
+            text: dictation.transcript,
+            placeholder: "Say what you ate, like “two eggs and a slice of toast.”",
+            isListening: phase == .listening,
+            quoted: true
+        )
     }
 
     @ViewBuilder

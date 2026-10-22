@@ -64,7 +64,7 @@ struct CoachView: View {
             ToolbarItemGroup(placement: .topBarTrailing) {
                 Group {
                     if !coach.messages.isEmpty {
-                        Button("Clear") { coach.reset() }
+                        Button("Clear", systemImage: "arrow.counterclockwise") { coach.reset() }
                     }
                 }
                 // White over the color header.
@@ -179,15 +179,12 @@ struct CoachView: View {
     }
 
     private func log(_ message: CoachMessage) {
-        let meal = Meal.suggested()
-        for food in message.foods {
-            FoodLog.add(food, servings: 1, meal: meal, date: .now, in: context)
-        }
-        coach.markLogged(message)
+        // Shared with the iPhone Duo modes (Features/Duo/CoachDuo.swift).
+        coach.logSuggestion(message, in: context)
     }
 }
 
-private struct MessageBubble: View {
+struct MessageBubble: View {
     var message: CoachMessage
     var onLog: () -> Void
 
