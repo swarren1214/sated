@@ -27,7 +27,7 @@ struct SayItView: View {
                         .font(.footnote)
                         .multilineTextAlignment(.center)
                         .lineLimit(4)
-                    Text("Working it out on your iPhone…")
+                    Text("Looking it up on your iPhone…")
                         .font(.caption2)
                         .foregroundStyle(.secondary)
                         .multilineTextAlignment(.center)
@@ -38,6 +38,8 @@ struct SayItView: View {
                     foods: reply.foods,
                     meal: reply.meal.flatMap(Meal.init(rawValue:)) ?? .suggested(),
                     unmatched: reply.unmatched,
+                    approximate: Set(reply.approximate ?? []),
+                    daysAgo: reply.daysAgo ?? 0,
                     onLogged: onLogged
                 )
             case .failed(let message):

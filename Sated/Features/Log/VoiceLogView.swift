@@ -233,14 +233,15 @@ struct VoiceLogView: View {
         guard !transcript.isEmpty else { return }
         phase = .parsing
         do {
-            let result = try await MealParser.parse(transcript, database: database)
+            let result = try await MealParser.parse(transcript, database: database, context: context)
             items = result.items
             if let spokenMeal = result.meal { targetMeal = spokenMeal }
             guard !items.isEmpty else {
                 phase = .failed("Didn't catch any foods in that. Try naming each food and how much.")
                 return
             }
-            if !confirmEntries, items.allSatisfy({ $0.food != nil }) {
+            // A closest match (a generic sandwich for a restaurant's) always gets a look first.
+            if !confirmEntries, items.allSatisfy({ $0.food != nil && !$0.isApproximate }) {
                 logAll()
             } else {
                 withAnimation(.snappy) { phase = .review }
@@ -253,7 +254,7 @@ struct VoiceLogView: View {
     private func logAll() {
         for item in matched {
             guard let food = item.food else { continue }
-            FoodLog.add(food, servings: item.servings, meal: targetMeal, place: place, in: context)
+            FoodLog.add(food, servings: item.servings, meal: targetMeal, place: item.place ?? place, in: context)
         }
         dismiss()
         onAdded()
@@ -276,7 +277,7 @@ private struct VoiceItemRow: View {
             VStack(alignment: .leading, spacing: 2) {
                 if let food = item.food {
                     Text(food.name)
-                    Text("\(amount(food)) · \(Grams.text(item.nutrients.protein)) g protein")
+                    Text("\(amount(food)) · \(Grams.text(item.nutrients.protein)) g protein\(item.isApproximate ? " · Closest match" : "")")
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                         .monospacedDigit()

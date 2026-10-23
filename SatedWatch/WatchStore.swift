@@ -51,10 +51,10 @@ final class WatchStore: NSObject {
 
     // MARK: Logging
 
-    func log(_ foods: [WatchFood], meal: Meal) {
+    func log(_ foods: [WatchFood], meal: Meal, date: Date = .now) {
         let foods = foods.filter { $0.servings > 0 }
         guard !foods.isEmpty else { return }
-        let request = WatchLogRequest(date: .now, meal: meal.rawValue, foods: foods)
+        let request = WatchLogRequest(date: date, meal: meal.rawValue, foods: foods)
         pending.append(request)
         // Screenshot mode: counted in today's totals, but never saved or sent to the phone.
         guard !ScreenshotMode.isOn else { return }

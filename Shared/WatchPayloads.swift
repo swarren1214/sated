@@ -176,6 +176,12 @@ nonisolated struct WatchParseReply: Codable, Sendable {
     var foods: [WatchFood] = []
     /// Foods they said that weren't found, as said ("2 slices of mystery bread").
     var unmatched: [String] = []
+    /// IDs of foods that are the closest match rather than the item named (a generic sandwich
+    /// for a restaurant's), shown so they're checked before logging. Optional so a reply from
+    /// an older iPhone app still decodes.
+    var approximate: [String]? = nil
+    /// 1 when they said it was yesterday. nil or 0 is today.
+    var daysAgo: Int? = nil
     /// Set when nothing could be worked out; shown as is.
     var error: String?
 }

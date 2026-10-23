@@ -1,5 +1,6 @@
 import Foundation
 import FoundationModels
+import SwiftData
 
 // MARK: - Model output
 
@@ -7,6 +8,9 @@ import FoundationModels
 nonisolated struct ParsedMeal {
     @Guide(description: "The meal the person named, if any")
     var meal: MealMention
+
+    @Guide(description: "The day they said they ate it: \"today\" or no day is today, \"yesterday\" or \"last night\" is yesterday")
+    var day: DayMention
 
     @Guide(description: "Each separate food the person said they ate, in the order said", .maximumCount(12))
     var items: [ParsedFood]
@@ -18,15 +22,36 @@ nonisolated enum MealMention {
 }
 
 @Generable
+nonisolated enum DayMention {
+    case today, yesterday
+}
+
+@Generable
 nonisolated struct ParsedFood {
-    @Guide(description: "A short, generic food name to search a nutrition database with, singular, no amount. For example \"large egg\", \"sourdough bread\", \"chicken breast\".")
+    @Guide(description: "The restaurant, chain or brand this food came from, spelled as the business spells it (\"Chick-fil-A\", \"McDonald's\", \"Chipotle\"). When they name a place once for several foods, repeat it for every food from that place. Empty when no place or brand was said.")
+    var restaurant: String
+
+    @Guide(description: "The food as they named it, keeping menu and brand words but no amount or size, singular. For example \"grilled chicken sandwich\", \"waffle fries\", \"Chick-fil-A sauce\", \"honey roasted BBQ sauce\", \"large egg\".")
+    var name: String
+
+    @Guide(description: "A short, generic food name to search a nutrition database with, singular, no amount and no brand. For example \"chicken sandwich\", \"french fries\", \"large egg\", \"sourdough bread\".")
     var food: String
 
-    @Guide(description: "How many units were eaten. \"two eggs\" is 2, \"half a cup\" is 0.5, \"a slice\" is 1. Use 1 when no amount is given.")
+    @Guide(description: "How many units were eaten. \"two eggs\" is 2, \"half a cup\" is 0.5, \"three packets\" is 3, \"a slice\" is 1. Use 1 when no amount is given.")
     var quantity: Double
 
-    @Guide(description: "The unit said, in lowercase singular: egg, slice, cup, tbsp, oz, g, scoop, piece, serving. Use \"serving\" when none is said.")
+    @Guide(description: "The unit said, in lowercase singular: egg, slice, cup, tbsp, oz, g, scoop, piece, packet, serving. Use \"serving\" when none is said.")
     var unit: String
+
+    @Guide(description: "The size said, in lowercase: small, medium, large, regular or kids. Empty when no size was said.")
+    var size: String
+}
+
+extension ParsedFood {
+    /// A food with only the generic parts said, as before restaurants were understood.
+    init(food: String, quantity: Double, unit: String) {
+        self.init(restaurant: "", name: food, food: food, quantity: quantity, unit: unit, size: "")
+    }
 }
 
 /// One line of a parsed voice entry: what was said, matched to a food when possible.
@@ -35,21 +60,38 @@ struct VoiceItem: Identifiable, Hashable {
     var spoken: String
     var food: FoodItem?
     var servings: Double
+    /// The restaurant it came from, when they said one and it was found.
+    var place: PlaceRef?
+    /// The match is the closest thing found, not the item they named (a generic sandwich
+    /// for a restaurant's sandwich), so it's worth a look before logging.
+    var isApproximate = false
 
     var nutrients: Nutrients { (food?.nutrients ?? .zero) * servings }
 }
 
-/// Turns "two eggs and a slice of sourdough toast for dinner" into foods from the database.
-/// The model only splits the sentence into foods and amounts; every number shown comes from
-/// the database.
+/// Turns "a Chick-fil-A grilled chicken sandwich, a regular waffle fries and three packets of
+/// honey roasted BBQ sauce" into foods. The model only splits the sentence into foods, places
+/// and amounts; every number shown comes from a menu, the person's own log or the database
+/// (see `SpokenFoodMatcher`).
 enum MealParser {
     static let instructions = """
     You turn what someone says they ate into a list of foods and amounts. \
     Only list foods they said. Never add foods, sides or drinks they didn't mention. \
-    Split combined dishes only when they named the parts ("eggs and toast" is two foods; "a burrito" is one).
+    Split combined dishes only when they named the parts ("eggs and toast" is two foods; "a burrito" is one). \
+    Keep restaurant and brand names: they decide which menu the food comes from. \
+    Sauces, dressings and drinks they name are separate foods.
     """
 
-    static func parse(_ transcript: String, database: FoodDatabase) async throws -> (meal: Meal?, items: [VoiceItem]) {
+    struct Result {
+        var meal: Meal?
+        /// 0 for today, 1 for yesterday.
+        var daysAgo: Int
+        var items: [VoiceItem]
+    }
+
+    /// - Parameter context: the person's log, to match foods they've had before. Optional so
+    ///   tests and previews can leave it out.
+    static func parse(_ transcript: String, database: FoodDatabase, context: ModelContext? = nil, menus: SpokenFoodMatcher.MenuSource = .live) async throws -> Result {
         let session = LanguageModelSession(instructions: instructions)
         let response = try await session.respond(to: "What they said: \"\(transcript)\"", generating: ParsedMeal.self)
         let parsed = response.content
@@ -60,20 +102,15 @@ enum MealParser {
         case .dinner: .dinner
         case .notSaid: nil
         }
-        let items = parsed.items.map { item in
-            let match = database.search(item.food, limit: 1).first
-            return VoiceItem(
-                spoken: describe(item),
-                food: match,
-                servings: match.map { servings(for: item, food: $0) } ?? max(item.quantity, 0.25)
-            )
-        }
-        return (meal, items)
+        let items = await SpokenFoodMatcher.match(parsed.items, database: database, context: context, menus: menus)
+        return Result(meal: meal, daysAgo: parsed.day == .yesterday ? 1 : 0, items: items)
     }
 
     static func describe(_ item: ParsedFood) -> String {
         let amount = item.quantity.formatted(.number.precision(.fractionLength(0...2)))
-        return item.unit == "serving" ? "\(amount) \(item.food)" : "\(amount) \(item.unit) \(item.food)"
+        let said = item.name.trimmingCharacters(in: .whitespaces).isEmpty ? item.food : item.name
+        let sized = item.size.isEmpty ? said : "\(item.size) \(said)"
+        return item.unit == "serving" ? "\(amount) \(sized)" : "\(amount) \(item.unit) \(sized)"
     }
 
     /// Converts a spoken amount into servings of the matched food. Weights are converted

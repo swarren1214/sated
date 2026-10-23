@@ -145,16 +145,32 @@ final class WatchBridge: NSObject {
         if OnDeviceModel.availability == .available {
             do {
                 // The Watch stops waiting for a reply after a while; leave time for the fallback.
+                // A restaurant's menu is usually saved on the phone already; asking for a new one
+                // waits a few seconds at most.
+                let context = container?.mainContext
                 let parsing = Task { () async throws -> WatchParseReply in
-                    let result = try await MealParser.parse(transcript, database: database)
-                    let foods = result.items.compactMap { item in
-                        item.food.map { WatchFood(food: $0, servings: item.servings) }
+                    let result = try await MealParser.parse(transcript, database: database, context: context)
+                    var approximate: [String] = []
+                    let foods = result.items.compactMap { item -> WatchFood? in
+                        guard let food = item.food else { return nil }
+                        var watchFood = WatchFood(food: food, servings: item.servings)
+                        watchFood.placeID = item.place?.id
+                        watchFood.placeName = item.place?.name
+                        if item.isApproximate { approximate.append(watchFood.id) }
+                        return watchFood
                     }
                     let unmatched = result.items.filter { $0.food == nil }.map(\.spoken)
-                    return WatchParseReply(meal: result.meal?.rawValue, foods: foods, unmatched: unmatched)
+                    return WatchParseReply(
+                        meal: result.meal?.rawValue,
+                        foods: foods,
+                        unmatched: unmatched,
+                        approximate: approximate.isEmpty ? nil : approximate,
+                        daysAgo: result.daysAgo == 0 ? nil : result.daysAgo
+                    )
                 }
+                // The model, then restaurant menus (at most `SpokenFoodMatcher.menuWait`).
                 let limit = Task {
-                    try? await Task.sleep(for: .seconds(8))
+                    try? await Task.sleep(for: .seconds(14))
                     parsing.cancel()
                 }
                 defer { limit.cancel() }

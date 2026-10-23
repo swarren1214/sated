@@ -19,15 +19,24 @@ struct HomeView: View {
                 }
 
                 Section {
-                    TextFieldLink(prompt: Text("Two eggs and toast")) {
+                    // A Liquid Glass pill in the app's color, white text and icon.
+                    TextFieldLink(prompt: Text("Chick-fil-A sandwich and fries")) {
                         Label("Say What You Ate", systemImage: "mic.fill")
                             .font(.headline)
+                            .foregroundStyle(.white)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.8)
+                            .frame(maxWidth: .infinity, minHeight: 48)
+                            .contentShape(.capsule)
+                            .glassEffect(.regular.tint(store.accent).interactive(), in: .capsule)
                     } onSubmit: { text in
                         let said = text.trimmingCharacters(in: .whitespacesAndNewlines)
                         guard !said.isEmpty else { return }
                         path.append(.say(said))
                     }
-                    .foregroundStyle(store.accent)
+                    .buttonStyle(.plain)
+                    .listRowBackground(Color.clear)
+                    .listRowInsets(EdgeInsets())
                 }
 
                 Section {
@@ -129,6 +138,8 @@ struct SummaryCard: View {
 /// "Greek yogurt / 1 cup · 150 kcal"
 struct FoodRow: View {
     var food: WatchFood
+    /// A word of caution under the food, such as "Closest match".
+    var note: String? = nil
 
     var body: some View {
         VStack(alignment: .leading, spacing: 2) {
@@ -143,6 +154,12 @@ struct FoodRow: View {
                 Text(place)
                     .font(.caption2)
                     .foregroundStyle(.tint)
+                    .lineLimit(1)
+            }
+            if let note {
+                Label(note, systemImage: "exclamationmark.circle")
+                    .font(.caption2)
+                    .foregroundStyle(.yellow)
                     .lineLimit(1)
             }
         }
