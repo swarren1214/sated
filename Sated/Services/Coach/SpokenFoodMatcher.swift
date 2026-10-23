@@ -119,16 +119,17 @@ enum SpokenFoodMatcher {
         }
         let asks = names.map { ($0, refs[$0]?.name ?? $0) }
         let source = menus
-        let fetched = await first(within: menuWait) {
-            await withTaskGroup(of: (String, RestaurantMenu?).self) { group in
+        let found: [String: RestaurantMenu]? = await first(within: menuWait) { () async -> [String: RestaurantMenu] in
+            await withTaskGroup(of: (String, RestaurantMenu?).self, returning: [String: RestaurantMenu].self) { group in
                 for (name, asked) in asks {
                     group.addTask { (name, await source.menu(asked)) }
                 }
-                var found: [String: RestaurantMenu] = [:]
-                for await (name, menu) in group { found[name] = menu }
-                return found
+                var byName: [String: RestaurantMenu] = [:]
+                for await (name, menu) in group { byName[name] = menu }
+                return byName
             }
-        } ?? [:]
+        }
+        let fetched = found ?? [:]
         var places: [String: Place] = [:]
         for name in names {
             var ref = refs[name] ?? PlaceRef(id: name, name: name)
