@@ -231,6 +231,8 @@ struct AppRoot: View {
             }
             // Links from the widgets: sated://today, sated://add, sated://trends.
             .onOpenURL { url in
+                // Household invitations (HearthInviteLink) open the join sheet.
+                if HearthInviteLink.open(url) { return }
                 let router = AppRouter.shared
                 switch url.host() {
                 case "add":
