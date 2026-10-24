@@ -1,0 +1,526 @@
+{
+  "accentHex" : "#F08A24",
+  "ascAppID" : "",
+  "ascAppName" : "",
+  "inkHex" : "#A8560A",
+  "listings" : {
+
+  },
+  "live" : {
+
+  },
+  "locale" : "en-US",
+  "sets" : {
+    "artHeader" : {
+      "captures" : [
+
+      ],
+      "devices" : [
+        {
+          "aspect" : 1,
+          "baseWidth" : 0,
+          "capture" : "screenshots\/iPhone-18-Pro\/light\/03-trends.png",
+          "flipped" : false,
+          "groupID" : "94B53113-1B6D-4ABC-85C7-2343D7DEDF39",
+          "hidden" : false,
+          "id" : "C31C4E1D-AEE0-49B7-8018-0EDB83F236A2",
+          "imagePath" : "",
+          "kind" : "device",
+          "locked" : false,
+          "name" : "",
+          "opacity" : 1,
+          "renderID" : "render-f6bcd037",
+          "rotation" : 0,
+          "scale" : 1.5868051020127742,
+          "shadow" : true,
+          "x" : 1606,
+          "y" : 341
+        },
+        {
+          "aspect" : 1,
+          "baseWidth" : 0,
+          "capture" : "screenshots\/iPhone-18-Pro\/dark\/01-today.png",
+          "flipped" : false,
+          "groupID" : "94B53113-1B6D-4ABC-85C7-2343D7DEDF39",
+          "hidden" : false,
+          "id" : "FD1CA924-C87E-41A3-B2F1-2A56416FD9C6",
+          "imagePath" : "",
+          "kind" : "device",
+          "locked" : false,
+          "name" : "",
+          "opacity" : 1,
+          "renderID" : "render-f6bcd037",
+          "rotation" : 0,
+          "scale" : 1.8014096265771122,
+          "shadow" : true,
+          "x" : 2517,
+          "y" : 462
+        },
+        {
+          "aspect" : 1,
+          "baseWidth" : 0,
+          "capture" : "screenshots\/iPhone-18-Pro\/dark\/02-meal.png",
+          "flipped" : false,
+          "groupID" : "94B53113-1B6D-4ABC-85C7-2343D7DEDF39",
+          "hidden" : false,
+          "id" : "8A1295BB-0CCF-4A61-BE46-6B0C52C6B6D2",
+          "imagePath" : "",
+          "kind" : "device",
+          "locked" : false,
+          "name" : "",
+          "opacity" : 1,
+          "renderID" : "render-f6bcd037",
+          "rotation" : 0,
+          "scale" : 1.8901497118467723,
+          "shadow" : true,
+          "x" : 2067,
+          "y" : 25
+        }
+      ],
+      "frames" : [
+        {
+          "id" : "DA7D163E-A259-48B8-81F2-24ECE5C3A3C0",
+          "line1" : "Know what you ate.",
+          "line2" : "Not just guess.",
+          "look" : "accent",
+          "showIcon" : false,
+          "subhead" : ""
+        }
+      ],
+      "layerGroups" : [
+        {
+          "id" : "94B53113-1B6D-4ABC-85C7-2343D7DEDF39",
+          "name" : "Group 1"
+        }
+      ],
+      "linked" : [
+
+      ],
+      "publish" : true
+    },
+    "artSearch" : {
+      "captures" : [
+
+      ],
+      "devices" : [
+        {
+          "aspect" : 1,
+          "baseWidth" : 0,
+          "capture" : "screenshots\/iPhone-18-Pro\/light\/03-trends.png",
+          "flipped" : false,
+          "hidden" : false,
+          "id" : "FA92BA0A-1C2C-48B2-9EF5-C947A57D4CE2",
+          "imagePath" : "",
+          "kind" : "device",
+          "locked" : false,
+          "name" : "",
+          "opacity" : 1,
+          "renderID" : "render-f6bcd037",
+          "rotation" : 0,
+          "scale" : 1.9270638416783026,
+          "shadow" : true,
+          "x" : 1596.4314803244897,
+          "y" : 581.9999999999999
+        },
+        {
+          "aspect" : 1,
+          "baseWidth" : 0,
+          "capture" : "screenshots\/iPhone-18-Pro\/dark\/01-today.png",
+          "flipped" : false,
+          "hidden" : false,
+          "id" : "E95E06B9-BDAF-46D7-BE8B-A2BB5B90F835",
+          "imagePath" : "",
+          "kind" : "device",
+          "locked" : false,
+          "name" : "",
+          "opacity" : 1,
+          "renderID" : "render-f6bcd037",
+          "rotation" : 0,
+          "scale" : 1.9855162474480224,
+          "shadow" : true,
+          "x" : 2790,
+          "y" : 829
+        },
+        {
+          "aspect" : 1,
+          "baseWidth" : 0,
+          "capture" : "screenshots\/iPhone-18-Pro\/dark\/02-meal.png",
+          "flipped" : false,
+          "hidden" : false,
+          "id" : "9A40AD08-744C-44B7-8BB6-FD4578128CA0",
+          "imagePath" : "",
+          "kind" : "device",
+          "locked" : false,
+          "name" : "",
+          "opacity" : 1,
+          "renderID" : "render-f6bcd037",
+          "rotation" : 0,
+          "scale" : 2.15,
+          "shadow" : true,
+          "x" : 2240,
+          "y" : 170
+        }
+      ],
+      "frames" : [
+        {
+          "id" : "F059DE81-0554-4ACA-BA9B-799CA8129A05",
+          "line1" : "Know what you ate.",
+          "line2" : "Not just guess.",
+          "look" : "tint",
+          "showIcon" : true,
+          "subhead" : "Speak a meal or scan a label. Sated does the math."
+        }
+      ],
+      "layerGroups" : [
+
+      ],
+      "linked" : [
+
+      ],
+      "publish" : true
+    },
+    "duoOuter" : {
+      "captures" : [
+
+      ],
+      "devices" : [
+        {
+          "aspect" : 1,
+          "baseWidth" : 0,
+          "capture" : "",
+          "flipped" : false,
+          "hidden" : false,
+          "id" : "C03DD713-92A1-477B-B776-B33760F50922",
+          "imagePath" : "",
+          "kind" : "device",
+          "locked" : false,
+          "name" : "",
+          "opacity" : 1,
+          "renderID" : "render-13c1dea3",
+          "rotation" : 0,
+          "scale" : 1.977205539639103,
+          "shadow" : true,
+          "x" : 140,
+          "y" : 639
+        },
+        {
+          "aspect" : 1,
+          "baseWidth" : 0,
+          "capture" : "",
+          "flipped" : false,
+          "hidden" : false,
+          "id" : "30A8ECC0-26F5-4776-BFED-5DACBBB2B50F",
+          "imagePath" : "",
+          "kind" : "device",
+          "locked" : false,
+          "name" : "",
+          "opacity" : 1,
+          "renderID" : "render-f7e3c805",
+          "rotation" : 0,
+          "scale" : 1,
+          "shadow" : true,
+          "x" : 1857,
+          "y" : 544
+        },
+        {
+          "aspect" : 1,
+          "baseWidth" : 0,
+          "capture" : "",
+          "flipped" : false,
+          "hidden" : false,
+          "id" : "AA8D67BD-09D3-4670-B4D6-C3984FD7D899",
+          "imagePath" : "",
+          "kind" : "device",
+          "locked" : false,
+          "name" : "",
+          "opacity" : 1,
+          "renderID" : "render-f7e3c805",
+          "rotation" : 0,
+          "scale" : 1.2512193589706353,
+          "shadow" : true,
+          "x" : 3020,
+          "y" : 520
+        }
+      ],
+      "frames" : [
+        {
+          "id" : "E93ACC3F-A617-4B22-9AA6-F02C347D2F15",
+          "line1" : "Know what you ate.",
+          "line2" : "Not just guess.",
+          "look" : "accent",
+          "showIcon" : true,
+          "subhead" : "Speak a meal or scan a label. Sated does the math."
+        },
+        {
+          "id" : "C97E597D-130E-4F22-8B7B-71BFEA935184",
+          "line1" : "Say it.",
+          "line2" : "It’s logged.",
+          "look" : "tint",
+          "showIcon" : false,
+          "subhead" : "“Two eggs and toast” becomes foods and amounts."
+        },
+        {
+          "id" : "531605E2-E215-4051-98D1-371FA1EDD890",
+          "line1" : "Scan a label.",
+          "line2" : "It checks the math.",
+          "look" : "tint",
+          "showIcon" : false,
+          "subhead" : "The reader flags numbers that don’t add up."
+        }
+      ],
+      "layerGroups" : [
+
+      ],
+      "linked" : [
+        true,
+        false
+      ],
+      "publish" : false
+    },
+    "ipad" : {
+      "captures" : [
+
+      ],
+      "devices" : [
+        {
+          "aspect" : 1,
+          "baseWidth" : 0,
+          "capture" : "screenshots\/iPad-Air-13-inch-(M4)\/dark\/01-today.png",
+          "flipped" : false,
+          "hidden" : false,
+          "id" : "0C9BE0F8-F2F3-4F5F-8D5A-965D6380E39B",
+          "imagePath" : "",
+          "kind" : "device",
+          "locked" : false,
+          "name" : "",
+          "opacity" : 1,
+          "renderID" : "render-d9393411",
+          "rotation" : 0,
+          "scale" : 1.329356931626691,
+          "shadow" : true,
+          "x" : 419,
+          "y" : 765
+        },
+        {
+          "aspect" : 1,
+          "baseWidth" : 0,
+          "capture" : "screenshots\/iPad-Air-13-inch-(M4)\/dark\/02-meal.png",
+          "flipped" : false,
+          "hidden" : false,
+          "id" : "417B5035-F3C3-4848-B946-A7BB412481DA",
+          "imagePath" : "",
+          "kind" : "device",
+          "locked" : false,
+          "name" : "",
+          "opacity" : 1,
+          "renderID" : "render-261559ba",
+          "rotation" : 0,
+          "scale" : 1.3029918214678682,
+          "shadow" : true,
+          "x" : 4209,
+          "y" : 610
+        },
+        {
+          "aspect" : 1,
+          "baseWidth" : 0,
+          "capture" : "screenshots\/iPad-Air-13-inch-(M4)\/dark\/03-trends.png",
+          "flipped" : false,
+          "hidden" : false,
+          "id" : "B797C496-7BE0-4913-84B6-06D79AED4D8E",
+          "imagePath" : "",
+          "kind" : "device",
+          "locked" : false,
+          "name" : "",
+          "opacity" : 1,
+          "renderID" : "render-d9393411",
+          "rotation" : 0,
+          "scale" : 1.4471402955943038,
+          "shadow" : true,
+          "x" : 1876,
+          "y" : 608
+        }
+      ],
+      "frames" : [
+        {
+          "id" : "DC498E4D-516E-4311-8213-FD1FE4BE5E5D",
+          "line1" : "Know what you ate.",
+          "line2" : "Not just guess.",
+          "look" : "accent",
+          "showIcon" : true,
+          "subhead" : "Speak a meal or scan a label. Sated does the math."
+        },
+        {
+          "id" : "C63A69D7-3E29-4C9C-AFF4-52E0D4836F75",
+          "line1" : "Say it.",
+          "line2" : "It’s logged.",
+          "look" : "tint",
+          "showIcon" : false,
+          "subhead" : "“Two eggs and toast” becomes foods and amounts."
+        },
+        {
+          "id" : "390CDE63-5F27-4230-994C-6E72449A781C",
+          "line1" : "Scan a label.",
+          "line2" : "It checks the math.",
+          "look" : "tint",
+          "showIcon" : false,
+          "subhead" : "The reader flags numbers that don’t add up."
+        }
+      ],
+      "layerGroups" : [
+
+      ],
+      "linked" : [
+        true,
+        false
+      ],
+      "publish" : true
+    },
+    "iphone" : {
+      "captures" : [
+
+      ],
+      "devices" : [
+        {
+          "aspect" : 1,
+          "baseWidth" : 0,
+          "capture" : "screenshots\/iPhone-18-Pro\/light\/03-trends.png",
+          "flipped" : false,
+          "hidden" : false,
+          "id" : "247F5F5F-4059-4AD5-A509-2C4B85D816AC",
+          "imagePath" : "",
+          "kind" : "device",
+          "locked" : false,
+          "name" : "",
+          "opacity" : 1,
+          "renderID" : "render-f6bcd037",
+          "rotation" : 0,
+          "scale" : 1.85,
+          "shadow" : true,
+          "x" : 787,
+          "y" : 746
+        },
+        {
+          "aspect" : 1,
+          "baseWidth" : 0,
+          "capture" : "screenshots\/iPhone-18-Pro\/dark\/01-today.png",
+          "flipped" : false,
+          "hidden" : false,
+          "id" : "94FBB289-4D1C-42E5-820F-D94417BB5F41",
+          "imagePath" : "",
+          "kind" : "device",
+          "locked" : false,
+          "name" : "",
+          "opacity" : 1,
+          "renderID" : "render-f6bcd037",
+          "rotation" : 0,
+          "scale" : 1.85,
+          "shadow" : true,
+          "x" : -188,
+          "y" : 732
+        },
+        {
+          "aspect" : 1,
+          "baseWidth" : 0,
+          "capture" : "screenshots\/iPhone-18-Pro\/dark\/02-meal.png",
+          "flipped" : false,
+          "hidden" : false,
+          "id" : "95FE0F99-14FA-49D3-9F7B-6EC79418D7CD",
+          "imagePath" : "",
+          "kind" : "device",
+          "locked" : false,
+          "name" : "",
+          "opacity" : 1,
+          "renderID" : "render-041fceb4",
+          "rotation" : 0,
+          "scale" : 1,
+          "shadow" : true,
+          "x" : 2778,
+          "y" : 617
+        },
+        {
+          "aspect" : 1,
+          "baseWidth" : 0,
+          "capture" : "screenshots\/iPhone-18-Pro\/dark\/03-trends.png",
+          "flipped" : false,
+          "hidden" : false,
+          "id" : "0E5379FC-AA7B-49E2-9852-CFCFD7A0B46F",
+          "imagePath" : "",
+          "kind" : "device",
+          "locked" : false,
+          "name" : "",
+          "opacity" : 1,
+          "renderID" : "render-4d02fad1",
+          "rotation" : 0,
+          "scale" : 1,
+          "shadow" : true,
+          "x" : 4098,
+          "y" : 484
+        }
+      ],
+      "frames" : [
+        {
+          "id" : "3441660E-D5E2-4FC0-9057-39FF1ACC9C9C",
+          "line1" : "Know what you ate.",
+          "line2" : "Not just guess.",
+          "look" : "accent",
+          "showIcon" : true,
+          "subhead" : "Speak a meal or scan a label. Sated does the math."
+        },
+        {
+          "id" : "730E2C71-6232-41C1-9E8D-F55155C50121",
+          "line1" : "Say it.",
+          "line2" : "It’s logged.",
+          "look" : "tint",
+          "showIcon" : false,
+          "subhead" : "“Two eggs and toast” becomes foods and amounts."
+        },
+        {
+          "id" : "9E87251C-6A93-45EA-AAAF-AF3D7F09E910",
+          "line1" : "Scan a label.",
+          "line2" : "It checks the math.",
+          "look" : "tint",
+          "showIcon" : false,
+          "subhead" : "The reader flags numbers that don’t add up."
+        },
+        {
+          "id" : "4BFC5FCB-DD56-4862-91F7-F3D6BBEBCB1E",
+          "line1" : "A private coach.",
+          "line2" : "On your iPhone.",
+          "look" : "tint",
+          "showIcon" : false,
+          "subhead" : "Real answers from your real numbers."
+        }
+      ],
+      "layerGroups" : [
+
+      ],
+      "linked" : [
+        true,
+        false,
+        false
+      ],
+      "publish" : true
+    },
+    "watch" : {
+      "captures" : [
+        "screenshots\/Apple-Watch-Series-12-(46mm)\/dark\/01-home.png",
+        "screenshots\/Apple-Watch-Series-12-(46mm)\/dark\/02-usual.png",
+        "screenshots\/Apple-Watch-Series-12-(46mm)\/dark\/03-say.png"
+      ],
+      "devices" : [
+
+      ],
+      "frames" : [
+
+      ],
+      "layerGroups" : [
+
+      ],
+      "linked" : [
+
+      ],
+      "publish" : true
+    }
+  },
+  "tintHex" : "#FEF2E5"
+}
